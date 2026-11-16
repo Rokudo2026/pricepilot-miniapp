@@ -91,7 +91,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="row"><label class="label" for="battery">Аккумулятор</label><span class="big" id="battery-v">90%</span></div>
 <input id="battery" type="range" min="50" max="100" value="90">
 </div>
-<div>
+<div id="kit-box">
 <span class="label" id="def-l">Комплект и дефекты</span>
 <div class="chips" role="group" aria-labelledby="def-l">
 <button class="opt" type="button" data-toggle="box">С коробкой</button>
@@ -189,6 +189,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("sim-box").classList.toggle("hidden", !simRelevant(text));
     // Samsung and others do not show battery health; the slider is for Apple only.
     $("battery-box").classList.toggle("hidden", state.condition === "new" || !isApple(text));
+    // Sealed new device: box is implied, defects are impossible.
+    $("kit-box").classList.toggle("hidden", state.condition === "new");
     $("def-faceid").classList.toggle("hidden", !isIphone(text));
   }
 
@@ -242,8 +244,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     err($("form-err"), "");
     var item = {
       query: query, storage_gb: Number(state.storage), condition: state.condition,
-      battery: state.condition === "new" || !isApple(query) ? null : Number($("battery").value), box: state.box,
-      defects: Object.keys(state.defects).filter(function (k) { return state.defects[k] && (k !== "face_id" || isIphone(query)); }),
+      battery: state.condition === "new" || !isApple(query) ? null : Number($("battery").value), box: state.condition === "new" ? true : state.box,
+      defects: state.condition === "new" ? [] : Object.keys(state.defects).filter(function (k) { return state.defects[k] && (k !== "face_id" || isIphone(query)); }),
       sim_variant: simRelevant(query) ? state.sim : null
     };
     submit(item, $("go"), $("form-err"));
@@ -296,7 +298,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     var parts = [cond];
     if (item.battery) parts.push("АКБ " + item.battery + "%");
     if (item.sim_variant) parts.push(item.sim_variant === "esim_only" ? "только eSIM" : "SIM-слот");
-    parts.push(item.box ? "с коробкой" : "без коробки");
+    if (item.condition !== "new") parts.push(item.box ? "с коробкой" : "без коробки");
     return parts.join(" · ");
   }
 
