@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PricePilot — оценка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#1F4FD8;--accent-dark:#173DA8;--accent-soft:#EAF0FF;--ink:#141A26;--muted:#4A5468;--line:#E1E6EE;--field:#C9D2E0;--bg:#F4F6F9;--ok:#1C7C46;--ok-soft:#E3F4EA;--warn:#8A5A00;--warn-soft:#FFF4DB}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.screen{display:none;min-height:100vh;flex-direction:column}.screen.on{display:flex}
+header{display:flex;align-items:center;gap:8px;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+h1{margin:0;font:800 20px/1.2 Manrope,sans-serif}
+.sub{font-size:13px;color:#5B6577}
+main{flex:1;display:flex;flex-direction:column;gap:18px;padding:16px 16px 110px}
+.label{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px;display:block}
+.seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.seg2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.opt{min-height:44px;border:1px solid var(--field);border-radius:10px;background:#fff;font:500 14px Inter,sans-serif;color:#2B3445;cursor:pointer;padding:0 8px}
+.opt[aria-pressed="true"]{border:2px solid var(--accent);background:var(--accent-soft);color:var(--accent-dark);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chips .opt{min-height:38px;border-radius:19px;padding:0 14px;font-size:13px}
+.input{display:flex;align-items:center;min-height:50px;padding:0 14px;background:#fff;border:2px solid var(--field);border-radius:12px}
+.input:focus-within{border-color:var(--accent)}
+.input input{flex:1;border:none;outline:none;font:500 16px Inter,sans-serif;background:transparent;color:var(--ink)}
+.row{display:flex;justify-content:space-between;align-items:baseline}
+.big{font:800 20px Manrope,sans-serif}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.footer{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(16px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line)}
+.btn{display:flex;width:100%;align-items:center;justify-content:center;min-height:54px;border:none;border-radius:14px;background:var(--accent);color:#fff;font:600 17px Inter,sans-serif;cursor:pointer}
+.btn[disabled]{opacity:.5}.btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--field)}
+.duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.err{padding:12px 14px;border-radius:12px;background:#FDECEC;color:#8B1C1C;font-size:14px;display:none}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}.bar>div{height:8px;background:var(--accent);width:5%;transition:width .6s}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px}
+.src{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #EEF1F5}.src:last-child{border-bottom:none}
+.dot{width:28px;height:28px;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center}
+.spin{border:3px solid #D3DCEB;border-top-color:var(--accent);animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.hero{display:flex;flex-direction:column;gap:14px;padding:18px;border-radius:18px;background:var(--accent);color:#fff}
+.hero .amount{font:800 38px/1 Manrope,sans-serif}
+.pill{padding:4px 10px;border-radius:12px;background:#fff;color:var(--accent-dark);font-size:12px;font-weight:600;white-space:nowrap}
+.note{display:flex;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--accent-dark);font-size:14px}
+.tile{display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:14px;background:#fff;border:1px solid var(--line)}
+.tile .k{font-size:12px;color:#5B6577}.tile .v{font:800 20px Manrope,sans-serif}
+.strip{display:flex;justify-content:space-between;padding:12px 14px;border-radius:14px;font-size:14px}
+.okstrip{background:var(--ok-soft);color:#1C5E37}.warnstrip{background:var(--warn-soft);color:var(--warn)}
+.basis{display:flex;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid #EEF1F5;font-size:14px}.basis:last-child{border-bottom:none}
+.basis b{font-weight:600}.basis .s{font-size:12px;color:#5B6577}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<section id="form" class="screen on" aria-labelledby="form-title">
+<header><h1 id="form-title">Новая оценка</h1></header>
+<main>
+<div>
+<label class="label" for="model">Модель</label>
+<div class="input"><input id="model" autocomplete="off" placeholder="Например, iPhone 15 Pro"></div>
+</div>
+<div>
+<span class="label" id="storage-l">Память, ГБ</span>
+<div class="seg" role="group" aria-labelledby="storage-l" data-group="storage">
+<button class="opt" type="button" data-v="128">128</button>
+<button class="opt" type="button" data-v="256" aria-pressed="true">256</button>
+<button class="opt" type="button" data-v="512">512</button>
+<button class="opt" type="button" data-v="1024">1 ТБ</button>
+</div>
+</div>
+<div>
+<span class="label" id="cond-l">Состояние</span>
+<div class="seg seg2" role="group" aria-labelledby="cond-l" data-group="condition">
+<button class="opt" type="button" data-v="new">Новый, запечатан</button>
+<button class="opt" type="button" data-v="excellent" aria-pressed="true">Отличное</button>
+<button class="opt" type="button" data-v="good">Хорошее</button>
+<button class="opt" type="button" data-v="fair">Удовлетворительное</button>
+</div>
+</div>
+<div id="battery-box">
+<div class="row"><label class="label" for="battery">Аккумулятор</label><span class="big" id="battery-v">90%</span></div>
+<input id="battery" type="range" min="50" max="100" value="90">
+</div>
+<div>
+<span class="label" id="def-l">Комплект и дефекты</span>
+<div class="chips" role="group" aria-labelledby="def-l">
+<button class="opt" type="button" data-toggle="box">С коробкой</button>
+<button class="opt" type="button" data-defect="face_id">Face ID</button>
+<button class="opt" type="button" data-defect="display">Экран</button>
+<button class="opt" type="button" data-defect="back">Задняя крышка</button>
+<button class="opt" type="button" data-defect="camera">Камера</button>
+<button class="opt" type="button" data-defect="speaker">Динамик</button>
+<button class="opt" type="button" data-defect="battery">Аккумулятор менялся</button>
+<button class="opt" type="button" data-defect="cosmetic">Царапины</button>
+</div>
+</div>
+<div class="err" id="form-err" role="alert"></div>
+</main>
+<div class="footer"><button class="btn" id="go" type="button">Оценить</button></div>
+</section>
+
+<section id="wait" class="screen" aria-labelledby="wait-title">
+<header><h1 id="wait-title">Оцениваю</h1></header>
+<main>
+<div><div class="big" id="wait-item"></div><div class="sub" id="wait-sub"></div></div>
+<div>
+<div class="row sub" style="margin-bottom:8px"><span>Ищу цены на OLX, Kaspi, в Telegram и в наших продажах</span><span id="wait-time"></span></div>
+<div class="bar"><div id="bar"></div></div>
+</div>
+<div class="card" style="padding:16px;display:flex;gap:12px;align-items:center">
+<div class="dot spin" aria-hidden="true"></div>
+<div class="sub" style="font-size:14px">Обычно это занимает до минуты. Можно свернуть окно — результат придёт и в чат с ботом.</div>
+</div>
+<div class="err" id="wait-err" role="alert"></div>
+</main>
+<div class="footer"><button class="btn ghost" id="wait-back" type="button">Назад к форме</button></div>
+</section>
+
+<section id="result" class="screen" aria-labelledby="res-title">
+<header><div><h1 id="res-title"></h1><div class="sub" id="res-sub"></div></div></header>
+<main>
+<div class="hero" id="hero">
+<div class="row"><span style="font-size:14px;color:#DCE6FF">Рекомендуемый закуп</span><span class="pill" id="res-rel"></span></div>
+<div class="amount" id="res-buy"></div>
+<div class="note" id="res-max-box"><span id="res-max"></span></div>
+</div>
+<div class="strip warnstrip hidden" id="res-withheld" role="status">Рынок подтверждён недостаточно — сумму закупа бот не показывает. Нужна оценка эксперта.</div>
+<div class="duo">
+<div class="tile"><span class="k">Продажа наличными</span><span class="v" id="res-cash"></span></div>
+<div class="tile"><span class="k">В рассрочку</span><span class="v" id="res-inst"></span></div>
+</div>
+<div class="strip okstrip" id="res-margin-box"><span>Ожидаемая маржа</span><b id="res-margin"></b></div>
+<div class="strip warnstrip hidden" id="res-partial">Рынок подтверждён частично — проверьте аналоги в чате с ботом.</div>
+<div class="card">
+<div style="padding:14px 16px 4px" class="label">На чём основана цена</div>
+<div id="res-basis"></div>
+</div>
+</main>
+<div class="footer duo"><button class="btn ghost" id="res-chat" type="button">Подробно в чате</button><button class="btn" id="res-new" type="button">Новая оценка</button></div>
+</section>
+
+<script>
+(function () {
+  "use strict";
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+  var params = new URLSearchParams(location.search);
+  var API = (params.get("api") || "").replace(/\/+$/, "");
+  var initData = tg ? tg.initData : "";
+  var state = { storage: "256", condition: "excellent", box: false, defects: {} };
+  var pollTimer = null, startedAt = 0, lastItem = null;
+
+  function $(id) { return document.getElementById(id); }
+  function show(id) { ["form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); }); window.scrollTo(0, 0); }
+  function money(v) { return v ? Number(v).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸" : "—"; }
+  function err(box, text) { box.textContent = text; box.style.display = text ? "block" : "none"; }
+  function haptic(kind) { try { tg && tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} }
+
+  document.querySelectorAll("[data-group]").forEach(function (group) {
+    group.addEventListener("click", function (event) {
+      var button = event.target.closest(".opt"); if (!button) return;
+      group.querySelectorAll(".opt").forEach(function (b) { b.setAttribute("aria-pressed", String(b === button)); });
+      state[group.dataset.group] = button.dataset.v;
+      $("battery-box").classList.toggle("hidden", state.condition === "new");
+    });
+  });
+  document.querySelectorAll("[data-toggle],[data-defect]").forEach(function (button) {
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", function () {
+      var on = button.getAttribute("aria-pressed") !== "true";
+      button.setAttribute("aria-pressed", String(on));
+      if (button.dataset.toggle) state.box = on; else state.defects[button.dataset.defect] = on;
+    });
+  });
+  $("battery").addEventListener("input", function () { $("battery-v").textContent = this.value + "%"; });
+
+  var ERRORS = {
+    unauthorized: "Откройте приложение из бота PricePilot в Telegram.",
+    access_denied: "У вас нет доступа к PricePilot. Обратитесь к администратору.",
+    already_running: "Предыдущая оценка ещё идёт. Подождите минуту.",
+    rate_limited: "Слишком много оценок за час. Попробуйте позже.",
+    query_required: "Введите модель.",
+    network: "Нет связи с ботом. Проверьте интернет или попробуйте позже."
+  };
+
+  function api(path, options) {
+    options = options || {};
+    var headers = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1", "X-Init-Data": initData };
+    return fetch(API + path, { method: options.method || "GET", headers: headers, body: options.body })
+      .then(function (response) { return response.json().then(function (data) { data._status = response.status; return data; }); })
+      .catch(function () { return { error: "network" }; });
+  }
+
+  $("go").addEventListener("click", function () {
+    var query = $("model").value.trim();
+    if (query.length < 2) { err($("form-err"), ERRORS.query_required); $("model").focus(); return; }
+    if (!API) { err($("form-err"), "Не задан адрес бота. Откройте приложение кнопкой из бота."); return; }
+    err($("form-err"), "");
+    var item = {
+      query: query, storage_gb: Number(state.storage), condition: state.condition,
+      battery: state.condition === "new" ? null : Number($("battery").value), box: state.box,
+      defects: Object.keys(state.defects).filter(function (k) { return state.defects[k]; })
+    };
+    lastItem = item;
+    $("go").disabled = true;
+    api("/api/appraisals", { method: "POST", body: JSON.stringify({ init_data: initData, item: item }) }).then(function (data) {
+      $("go").disabled = false;
+      if (!data.job_id) { err($("form-err"), ERRORS[data.error] || "Не удалось начать оценку."); haptic("error"); return; }
+      $("wait-item").textContent = query + " " + (item.storage_gb >= 1024 ? "1 ТБ" : item.storage_gb + " ГБ");
+      $("wait-sub").textContent = describe(item);
+      err($("wait-err"), "");
+      startedAt = Date.now(); show("wait"); poll(data.job_id);
+    });
+  });
+
+  function describe(item) {
+    var cond = { "new": "Новый", excellent: "Отличное", good: "Хорошее", fair: "Удовлетворительное" }[item.condition] || "";
+    var parts = [cond];
+    if (item.battery) parts.push("АКБ " + item.battery + "%");
+    parts.push(item.box ? "с коробкой" : "без коробки");
+    return parts.join(" · ");
+  }
+
+  function poll(jobId) {
+    clearTimeout(pollTimer);
+    api("/api/appraisals/" + encodeURIComponent(jobId)).then(function (data) {
+      var seconds = Math.round((Date.now() - startedAt) / 1000);
+      $("wait-time").textContent = seconds + " сек";
+      if (data.progress) $("bar").style.width = Math.round(data.progress * 100) + "%";
+      if (data.status === "done") { render(data.result); haptic("success"); return; }
+      if (data.status === "error" || data.error) {
+        err($("wait-err"), ERRORS[data.error] || "Оценка не получилась. Подробности — в чате с ботом.");
+        haptic("error"); return;
+      }
+      pollTimer = setTimeout(function () { poll(jobId); }, 3000);
+    });
+  }
+
+  function render(r) {
+    r = r || {};
+    if (!r.complete) {
+      err($("wait-err"), "Боту нужно уточнение — ответьте ему в чате, затем вернитесь сюда.");
+      return;
+    }
+    $("res-title").textContent = r.title || "";
+    $("res-sub").textContent = [r.condition, r.battery ? "АКБ " + r.battery + "%" : ""].filter(Boolean).join(" · ");
+    var p = r.purchase || {};
+    $("hero").classList.toggle("hidden", !!p.withheld);
+    $("res-withheld").classList.toggle("hidden", !p.withheld);
+    $("res-buy").textContent = money(p.recommended);
+    $("res-max").innerHTML = "";
+    var maxText = document.createElement("span");
+    maxText.textContent = p.maximum ? "Максимум — " + money(p.maximum) + ", дороже не брать" : "";
+    $("res-max").appendChild(maxText);
+    $("res-max-box").classList.toggle("hidden", !p.maximum);
+    $("res-rel").textContent = r.reliability ? "Надёжность: " + r.reliability : "";
+    $("res-cash").textContent = money((r.sale || {}).cash);
+    $("res-inst").textContent = money((r.sale || {}).installment);
+    var m = r.margin || {};
+    $("res-margin").textContent = m.min ? money(m.min) + (m.max && m.max !== m.min ? " – " + money(m.max) : "") : "—";
+    $("res-margin-box").classList.toggle("hidden", !m.min || p.withheld);
+    $("res-partial").classList.toggle("hidden", !r.partially_confirmed || p.withheld);
+    var basis = $("res-basis"); basis.innerHTML = "";
+    function line(name, note, value) {
+      var row = document.createElement("div"); row.className = "basis";
+      var left = document.createElement("div"); var b = document.createElement("b"); b.textContent = name;
+      var s = document.createElement("div"); s.className = "s"; s.textContent = note;
+      left.appendChild(b); left.appendChild(s);
+      var right = document.createElement("b"); right.textContent = value;
+      row.appendChild(left); row.appendChild(right); basis.appendChild(row);
+    }
+    if (r.own_sales) line("Наши продажи", r.own_sales.count + " за 90 дней — основа цены", money(r.own_sales.min) + " – " + money(r.own_sales.max));
+    (r.sources || []).forEach(function (s) {
+      var note = s.ok ? (s.found != null ? "найдено " + s.found : "есть данные") : "недоступен";
+      if (s.ok && s.used) note += ", в расчёте " + s.used;
+      line(s.label, note, s.ok ? "✓" : "—");
+    });
+    show("result");
+  }
+
+  $("wait-back").addEventListener("click", function () { clearTimeout(pollTimer); show("form"); });
+  $("res-new").addEventListener("click", function () { show("form"); });
+  $("res-chat").addEventListener("click", function () { if (tg) tg.close(); });
+  if (!initData) err($("form-err"), ERRORS.unauthorized);
+})();
+</script>
+</body>
+</html>
