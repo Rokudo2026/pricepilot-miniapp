@@ -336,7 +336,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       var left = document.createElement("div");
       var t = document.createElement("div"); t.className = "t"; t.textContent = it.title || "Объявление";
       var s = document.createElement("div"); s.className = "s u";
-      s.textContent = [it.source, it.new ? "новый" : "", it.memory, it.battery ? "АКБ " + it.battery : "", it.used ? "в расчёте" : ""]
+      s.textContent = [it.source === "Магазины" ? "Sulpak/Technodom" : it.source, it.new ? "новый" : "", it.memory, it.battery ? "АКБ " + it.battery : "", it.used ? "в расчёте" : ""]
         .filter(Boolean).join(" · ") + " ↗";
       left.appendChild(t); left.appendChild(s);
       var right = document.createElement("b"); right.style.whiteSpace = "nowrap"; right.textContent = money(it.price);
@@ -383,7 +383,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     (r.sources || []).forEach(function (s) {
       var note = s.ok ? (s.found != null ? "найдено " + s.found : "есть данные") : (s.note || "недоступен");
       if (s.ok && s.used) note += ", в расчёте " + s.used;
-      line(s.label, note, s.ok ? "✓" : "—");
+      line(s.source === "retail" ? "Sulpak, Technodom" : s.label, note, s.ok ? "✓" : "—");
     });
     renderListings(r.listings || []);
     var j = loadJob(); if (j) { j.viewed = true; saveJob(j); }
