@@ -60,6 +60,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 <label class="label" for="model">Модель</label>
 <div class="input"><input id="model" autocomplete="off" placeholder="Например, iPhone 15 Pro"></div>
 </div>
+<button class="strip okstrip hidden" id="resume" type="button" style="border:0;width:100%;cursor:pointer;text-align:left"><span id="resume-t"></span><b>Открыть</b></button>
 <div>
 <span class="label" id="storage-l">Память, ГБ</span>
 <div class="seg" role="group" aria-labelledby="storage-l" data-group="storage">
@@ -93,7 +94,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 <span class="label" id="def-l">Комплект и дефекты</span>
 <div class="chips" role="group" aria-labelledby="def-l">
 <button class="opt" type="button" data-toggle="box">С коробкой</button>
-<button class="opt" type="button" data-defect="face_id">Face ID</button>
+<button class="opt" type="button" data-defect="face_id" id="def-faceid">Face ID</button>
 <button class="opt" type="button" data-defect="display">Экран</button>
 <button class="opt" type="button" data-defect="back">Задняя крышка</button>
 <button class="opt" type="button" data-defect="camera">Камера</button>
@@ -117,7 +118,11 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 </div>
 <div class="card" style="padding:16px;display:flex;gap:12px;align-items:center">
 <div class="dot spin" aria-hidden="true"></div>
-<div class="sub" style="font-size:14px">Обычно это занимает до минуты. Можно свернуть окно — результат придёт и в чат с ботом.</div>
+<div class="sub" style="font-size:14px">Обычно это занимает до минуты. Можно выйти к форме или закрыть окно — результат сохранится здесь на 30 минут и придёт в чат с ботом.</div>
+</div>
+<div class="card hidden" id="clarify" style="padding:16px">
+<div class="big" id="clarify-q" style="font-size:17px;margin-bottom:12px"></div>
+<div class="chips" id="clarify-opts"></div>
 </div>
 <div class="err" id="wait-err" role="alert"></div>
 </main>
@@ -162,7 +167,25 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
     var m = t.match(/(iphone|айфон)\s*(\d{1,2})/);
     return !!(m && Number(m[2]) >= 14);
   }
-  var pollTimer = null, startedAt = 0, lastItem = null;
+  function isApple(text) { return /(iphone|айфон|apple|ipad|айпад|watch)/i.test(text || ""); }
+  function isIphone(text) { return /(iphone|айфон)/i.test(text || ""); }
+  function storageText(gb) { return gb >= 1024 ? "1 ТБ" : gb + " ГБ"; }
+  var pollTimer = null, startedAt = 0, lastItem = null, currentJob = null;
+  var JOB_KEY = "pp_last_job";
+  function saveJob(job) { try { job ? localStorage.setItem(JOB_KEY, JSON.stringify(job)) : localStorage.removeItem(JOB_KEY); } catch (e) {} }
+  function loadJob() { try { var j = JSON.parse(localStorage.getItem(JOB_KEY) || "null"); return j && Date.now() - j.ts < 29 * 60000 ? j : null; } catch (e) { return null; } }
+  function refreshResume() {
+    var j = loadJob();
+    $("resume").classList.toggle("hidden", !j);
+    if (j) $("resume-t").textContent = "Последняя оценка: " + j.label;
+  }
+  function updateModelDependent() {
+    var text = $("model").value;
+    $("sim-box").classList.toggle("hidden", !simRelevant(text));
+    // Samsung and others do not show battery health; the slider is for Apple only.
+    $("battery-box").classList.toggle("hidden", state.condition === "new" || !isApple(text));
+    $("def-faceid").classList.toggle("hidden", !isIphone(text));
+  }
 
   function $(id) { return document.getElementById(id); }
   function show(id) { ["form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); }); window.scrollTo(0, 0); }
@@ -175,7 +198,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
       var button = event.target.closest(".opt"); if (!button) return;
       group.querySelectorAll(".opt").forEach(function (b) { b.setAttribute("aria-pressed", String(b === button)); });
       state[group.dataset.group] = button.dataset.v;
-      $("battery-box").classList.toggle("hidden", state.condition === "new");
+      updateModelDependent();
     });
   });
   document.querySelectorAll("[data-toggle],[data-defect]").forEach(function (button) {
@@ -187,9 +210,10 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
     });
   });
   $("battery").addEventListener("input", function () { $("battery-v").textContent = this.value + "%"; });
-  $("model").addEventListener("input", function () { $("sim-box").classList.toggle("hidden", !simRelevant(this.value)); });
+  $("model").addEventListener("input", updateModelDependent);
 
   var ERRORS = {
+    bad_variant: "Вариант модели не распознан. Начните оценку заново.",
     unauthorized: "Откройте приложение из бота PricePilot в Telegram.",
     access_denied: "У вас нет доступа к PricePilot. Обратитесь к администратору.",
     already_running: "Предыдущая оценка ещё идёт. Подождите минуту.",
@@ -213,21 +237,54 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
     err($("form-err"), "");
     var item = {
       query: query, storage_gb: Number(state.storage), condition: state.condition,
-      battery: state.condition === "new" ? null : Number($("battery").value), box: state.box,
-      defects: Object.keys(state.defects).filter(function (k) { return state.defects[k]; }),
+      battery: state.condition === "new" || !isApple(query) ? null : Number($("battery").value), box: state.box,
+      defects: Object.keys(state.defects).filter(function (k) { return state.defects[k] && (k !== "face_id" || isIphone(query)); }),
       sim_variant: simRelevant(query) ? state.sim : null
     };
-    lastItem = item;
-    $("go").disabled = true;
-    api("/api/appraisals", { method: "POST", body: JSON.stringify({ init_data: initData, item: item }) }).then(function (data) {
-      $("go").disabled = false;
-      if (!data.job_id) { err($("form-err"), ERRORS[data.error] || "Не удалось начать оценку."); haptic("error"); return; }
-      $("wait-item").textContent = query + " " + (item.storage_gb >= 1024 ? "1 ТБ" : item.storage_gb + " ГБ");
-      $("wait-sub").textContent = describe(item);
-      err($("wait-err"), "");
-      startedAt = Date.now(); show("wait"); poll(data.job_id);
-    });
+    submit(item, $("go"), $("form-err"));
   });
+
+  function submit(item, button, errBox) {
+    lastItem = item;
+    button.disabled = true;
+    api("/api/appraisals", { method: "POST", body: JSON.stringify({ init_data: initData, item: item }) }).then(function (data) {
+      button.disabled = false;
+      if (!data.job_id) { err(errBox, ERRORS[data.error] || "Не удалось начать оценку."); haptic("error"); return; }
+      var label = item.query + " " + storageText(item.storage_gb);
+      currentJob = { id: data.job_id, ts: Date.now(), label: label, sub: describe(item) };
+      saveJob(currentJob);
+      openJob(currentJob);
+    });
+  }
+
+  function openJob(job) {
+    currentJob = job;
+    $("wait-item").textContent = job.label;
+    $("wait-sub").textContent = job.sub || "";
+    $("clarify").classList.add("hidden");
+    $("bar").style.width = "0";
+    err($("wait-err"), "");
+    startedAt = job.ts; show("wait"); poll(job.id);
+  }
+
+  function askClarify(c) {
+    $("clarify-q").textContent = c.question || "Уточните вариант модели";
+    var box = $("clarify-opts"); box.innerHTML = "";
+    (c.options || []).forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "opt"; b.textContent = o.label || o.value;
+      b.addEventListener("click", function () {
+        var item = JSON.parse(JSON.stringify(lastItem || {}));
+        item.variant = { dimension: o.dimension, value: o.value, query: o.query };
+        if (o.dimension === "sim_variant") item.sim_variant = o.value;
+        if (o.value && o.value !== "base" && item.query.toLowerCase().indexOf(String(o.label).toLowerCase()) < 0) item.query += " " + o.label;
+        submit(item, b, $("wait-err"));
+      });
+      box.appendChild(b);
+    });
+    $("clarify").classList.remove("hidden");
+    saveJob(null);
+  }
 
   function describe(item) {
     var cond = { "new": "Новый", excellent: "Отличное", good: "Хорошее", fair: "Удовлетворительное" }[item.condition] || "";
@@ -245,7 +302,9 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
       $("wait-time").textContent = seconds + " сек";
       if (data.progress) $("bar").style.width = Math.round(data.progress * 100) + "%";
       if (data.status === "done") { render(data.result); haptic("success"); return; }
+      if (data._status === 404) { saveJob(null); err($("wait-err"), "Эта оценка уже недоступна. Начните новую."); return; }
       if (data.status === "error" || data.error) {
+        saveJob(null);
         err($("wait-err"), ERRORS[data.error] || "Оценка не получилась. Подробности — в чате с ботом.");
         haptic("error"); return;
       }
@@ -255,8 +314,10 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 
   function render(r) {
     r = r || {};
+    if (r.clarify) { askClarify(r.clarify); haptic("warning"); return; }
     if (!r.complete) {
-      err($("wait-err"), "Боту нужно уточнение — ответьте ему в чате, затем вернитесь сюда.");
+      saveJob(null);
+      err($("wait-err"), "Бот не смог посчитать эту модель. Подробности — в чате с ботом.");
       return;
     }
     $("res-title").textContent = r.title || "";
@@ -292,11 +353,17 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
       if (s.ok && s.used) note += ", в расчёте " + s.used;
       line(s.label, note, s.ok ? "✓" : "—");
     });
+    var j = loadJob(); if (j) { j.viewed = true; saveJob(j); }
     show("result");
   }
 
-  $("wait-back").addEventListener("click", function () { clearTimeout(pollTimer); show("form"); });
-  $("res-new").addEventListener("click", function () { show("form"); });
+  // Back keeps the job: the form shows "Последняя оценка — Открыть".
+  $("wait-back").addEventListener("click", function () { clearTimeout(pollTimer); refreshResume(); show("form"); });
+  $("res-new").addEventListener("click", function () { refreshResume(); show("form"); });
+  $("resume").addEventListener("click", function () { var j = loadJob(); if (j) openJob(j); else refreshResume(); });
+  updateModelDependent();
+  // Reopened while an appraisal was still running: go straight to it.
+  (function () { var j = loadJob(); if (j && !j.viewed && API) openJob(j); else refreshResume(); })();
   $("res-chat").addEventListener("click", function () { if (tg) tg.close(); });
   if (!initData) err($("form-err"), ERRORS.unauthorized);
 })();
