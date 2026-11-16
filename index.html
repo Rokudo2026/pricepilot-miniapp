@@ -69,6 +69,13 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 <button class="opt" type="button" data-v="1024">1 ТБ</button>
 </div>
 </div>
+<div id="sim-box" class="hidden">
+<span class="label" id="sim-l">SIM-карта</span>
+<div class="seg seg2" role="group" aria-labelledby="sim-l" data-group="sim">
+<button class="opt" type="button" data-v="physical_sim_present" aria-pressed="true">Есть слот SIM</button>
+<button class="opt" type="button" data-v="esim_only">Только eSIM</button>
+</div>
+</div>
 <div>
 <span class="label" id="cond-l">Состояние</span>
 <div class="seg seg2" role="group" aria-labelledby="cond-l" data-group="condition">
@@ -148,7 +155,13 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
   var params = new URLSearchParams(location.search);
   var API = (params.get("api") || "").replace(/\/+$/, "");
   var initData = tg ? tg.initData : "";
-  var state = { storage: "256", condition: "excellent", box: false, defects: {} };
+  var state = { storage: "256", condition: "excellent", sim: "physical_sim_present", box: false, defects: {} };
+  function simRelevant(text) {
+    var t = (text || "").toLowerCase();
+    if (/(iphone|айфон)\s*air/.test(t)) return true;
+    var m = t.match(/(iphone|айфон)\s*(\d{1,2})/);
+    return !!(m && Number(m[2]) >= 14);
+  }
   var pollTimer = null, startedAt = 0, lastItem = null;
 
   function $(id) { return document.getElementById(id); }
@@ -174,6 +187,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
     });
   });
   $("battery").addEventListener("input", function () { $("battery-v").textContent = this.value + "%"; });
+  $("model").addEventListener("input", function () { $("sim-box").classList.toggle("hidden", !simRelevant(this.value)); });
 
   var ERRORS = {
     unauthorized: "Откройте приложение из бота PricePilot в Telegram.",
@@ -200,7 +214,8 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
     var item = {
       query: query, storage_gb: Number(state.storage), condition: state.condition,
       battery: state.condition === "new" ? null : Number($("battery").value), box: state.box,
-      defects: Object.keys(state.defects).filter(function (k) { return state.defects[k]; })
+      defects: Object.keys(state.defects).filter(function (k) { return state.defects[k]; }),
+      sim_variant: simRelevant(query) ? state.sim : null
     };
     lastItem = item;
     $("go").disabled = true;
@@ -218,6 +233,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
     var cond = { "new": "Новый", excellent: "Отличное", good: "Хорошее", fair: "Удовлетворительное" }[item.condition] || "";
     var parts = [cond];
     if (item.battery) parts.push("АКБ " + item.battery + "%");
+    if (item.sim_variant) parts.push(item.sim_variant === "esim_only" ? "только eSIM" : "SIM-слот");
     parts.push(item.box ? "с коробкой" : "без коробки");
     return parts.join(" · ");
   }
