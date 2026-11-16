@@ -144,7 +144,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="tile"><span class="k">В рассрочку</span><span class="v" id="res-inst"></span></div>
 </div>
 <div class="strip okstrip" id="res-margin-box"><span>Ожидаемая маржа</span><b id="res-margin"></b></div>
-<div class="strip warnstrip hidden" id="res-partial">Рынок подтверждён частично — проверьте аналоги в чате с ботом.</div>
+<div class="strip warnstrip hidden" id="res-partial">Рынок подтверждён частично — просмотрите объявления ниже.</div>
 <div class="card">
 <div style="padding:14px 16px 4px" class="label">На чём основана цена</div>
 <div id="res-basis"></div>
@@ -353,7 +353,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       return;
     }
     $("res-title").textContent = r.title || "";
-    $("res-sub").textContent = [r.condition, r.battery ? "АКБ " + r.battery + "%" : ""].filter(Boolean).join(" · ");
+    $("res-sub").textContent = [r.condition, r.battery && !/^Нов/.test(r.condition || "") ? "АКБ " + r.battery + "%" : ""].filter(Boolean).join(" · ");
     var p = r.purchase || {};
     $("hero").classList.toggle("hidden", !!p.withheld);
     $("res-withheld").classList.toggle("hidden", !p.withheld);
