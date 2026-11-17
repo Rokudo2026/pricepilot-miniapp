@@ -68,6 +68,11 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <button class="menu primary hidden" id="m-purchase" type="button"><span class="ic">💰</span><span>Оценить закуп<div class="d">Сколько дать клиенту — на время или на продажу</div></span></button>
 <button class="menu hidden" id="m-sale" type="button"><span class="ic">🏷️</span><span>Выставить цену<div class="d">Цена продажи наличными и в рассрочку</div></span></button>
 <button class="menu hidden" id="m-history" type="button"><span class="ic">🕘</span><span id="m-history-t">Мои расчёты<div class="d">Прошлые оценки с ценами и ссылками</div></span></button>
+<button class="menu hidden" id="m-device" type="button"><span class="ic">🔎</span><span>Проверка устройства<div class="d">IMEI и серийный номер: KZ-IMEI, RFS, Kcell, SNDeep, Apple</div></span></button>
+<div class="duo">
+<button class="menu hidden" id="m-settings" type="button" style="padding:14px"><span class="ic">⚙️</span><span>Настройки</span></button>
+<button class="menu" id="m-help" type="button" style="padding:14px"><span class="ic">ℹ️</span><span>Помощь</span></button>
+</div>
 <div class="card hidden" id="m-chat" style="padding:14px 16px">
 <div class="label" style="margin-bottom:6px">Пока в чате с ботом</div>
 <div class="sub" id="m-chat-list" style="font-size:14px;line-height:1.5"></div>
@@ -88,6 +93,77 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="sub hidden" id="hist-empty" style="text-align:center;padding:24px 0">Расчётов пока нет</div>
 <button class="btn ghost hidden" id="hist-more" type="button">Показать ещё</button>
 <div class="err" id="hist-err" role="alert"></div>
+</main>
+</section>
+
+<section id="device" class="screen" aria-labelledby="dev-title">
+<header><h1 id="dev-title">Проверка устройства</h1></header>
+<main>
+<div>
+<span class="label" id="dev-brand-l">Производитель</span>
+<div class="seg" style="grid-template-columns:repeat(3,minmax(0,1fr))" role="group" aria-labelledby="dev-brand-l" id="dev-brand">
+<button class="opt" type="button" data-v="apple" aria-pressed="true">Apple</button>
+<button class="opt" type="button" data-v="samsung" aria-pressed="false">Samsung</button>
+<button class="opt" type="button" data-v="other" aria-pressed="false">Другой</button>
+</div>
+</div>
+<div>
+<label class="label" for="dev-imei">IMEI (15 цифр)</label>
+<div class="input"><input id="dev-imei" inputmode="numeric" autocomplete="off" placeholder="*#06# на телефоне"></div>
+</div>
+<div id="dev-serial-box">
+<label class="label" for="dev-serial">Серийный номер</label>
+<div class="input"><input id="dev-serial" autocomplete="off" autocapitalize="characters" placeholder="Настройки → Основные → Об этом устройстве"></div>
+</div>
+<div class="card hidden" id="dev-result" style="padding:0">
+<div style="padding:14px 16px 4px" class="label" id="dev-masked"></div>
+<div id="dev-copy" style="display:flex;gap:8px;padding:4px 16px 12px;flex-wrap:wrap"></div>
+<div id="dev-links"></div>
+<div class="sub" style="padding:12px 16px 16px;font-size:13px">Каждый источник проверяет только свою категорию риска. Отсутствие проблемы в одном источнике не означает полную чистоту устройства. IMEI не отправляется боту — он остаётся на вашем телефоне.</div>
+</div>
+<div class="err" id="dev-err" role="alert"></div>
+</main>
+<div class="footer"><button class="btn" id="dev-go" type="button">Проверить</button></div>
+</section>
+
+<section id="settings" class="screen" aria-labelledby="set-title">
+<header><h1 id="set-title">Мои настройки</h1></header>
+<main>
+<div class="card" style="padding:0" id="set-account"></div>
+<div id="set-edit">
+<div>
+<span class="label" id="set-region-l">География рынка</span>
+<div class="seg seg2" role="group" aria-labelledby="set-region-l" id="set-region">
+<button class="opt" type="button" data-v="astana">Астана</button>
+<button class="opt" type="button" data-v="kazakhstan">Казахстан</button>
+</div>
+</div>
+<div style="margin-top:18px">
+<span class="label" id="set-notif-l">Уведомления в чат</span>
+<div class="seg seg2" role="group" aria-labelledby="set-notif-l" id="set-notif">
+<button class="opt" type="button" data-v="1">Включены</button>
+<button class="opt" type="button" data-v="0">Выключены</button>
+</div>
+<div class="sub" style="margin-top:8px">Сообщение, когда PricePilot видит существенное изменение рыночных цен. Выгодные предложения сюда не входят.</div>
+</div>
+</div>
+<div class="strip okstrip hidden" id="set-saved">Сохранено</div>
+<div class="err" id="set-err" role="alert"></div>
+</main>
+</section>
+
+<section id="help" class="screen" aria-labelledby="help-title">
+<header><h1 id="help-title">Помощь</h1></header>
+<main>
+<div class="card" style="padding:16px;font-size:15px;line-height:1.55">
+<b>Оценить закуп</b> — сколько дать клиенту. Бот показывает рекомендуемую сумму и максимум, дороже которого брать нельзя, и на чём основана цена: наши продажи, OLX, Kaspi, Telegram-каналы, Sulpak/Technodom.<br><br>
+<b>Выставить цену</b> — цена продажи наличными и в рассрочку. Рассрочка не выше минимума Kaspi.<br><br>
+<b>Как писать модель:</b> «iPhone 15 Pro», «Samsung S25 Ultra», «MacBook Air M4», «iPad Pro M2», «PlayStation 5». Память выбирается кнопками. Если бот спросит вариант (например, S24 или S24 Ultra) — нажмите нужный.<br><br>
+<b>Для iPhone 14 и новее</b> укажите SIM: версия «только eSIM» дешевле.<br><br>
+<b>Новый, запечатан</b> — цена от минимума Kaspi; коробку и дефекты указывать не нужно.<br><br>
+<b>Если рынок подтверждён частично</b> — откройте объявления внизу результата и проверьте аналоги.<br><br>
+<b>Если бот не показал закуп</b> — данных мало, нужна оценка эксперта.
+</div>
 </main>
 </section>
 
@@ -235,7 +311,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   var screenNow = "home";
   function show(id) {
     screenNow = id;
-    ["home", "history", "form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); });
+    ["home", "history", "device", "settings", "help", "form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); });
     window.scrollTo(0, 0);
     try { if (tg && tg.BackButton) { if (id === "home") tg.BackButton.hide(); else tg.BackButton.show(); } } catch (e) {}
   }
@@ -489,14 +565,13 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("m-sale").classList.toggle("hidden", !f.sale);
     $("m-history").classList.toggle("hidden", !f.history);
     $("m-history-t").firstChild.nodeValue = f.history_all ? "История расчётов" : "Мои расчёты";
+    $("m-device").classList.toggle("hidden", !f.device_check);
+    $("m-settings").classList.toggle("hidden", profile.name == null);
     var chat = [];
-    if (f.device_check) chat.push("Проверка устройства");
     if (f.monitor) chat.push("Мониторинг цен");
-    if (f.settings) chat.push("Мои настройки");
     if (f.manage) chat.push("Управление PricePilot");
-    chat.push("Помощь");
     $("m-chat-list").textContent = chat.join(" · ");
-    $("m-chat").classList.remove("hidden");
+    $("m-chat").classList.toggle("hidden", !chat.length);
     $("hist-tabs").classList.toggle("hidden", !f.history_all);
     $("hist-title").textContent = f.history_all ? "История расчётов" : "Мои расчёты";
   }
@@ -541,6 +616,108 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("hist-tabs").querySelectorAll(".opt").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
     histScope = b.dataset.scope; loadHistory(true);
   });
+  // ---- device check (stays on the phone: links to official checks) ----
+  var devBrand = "apple";
+  function luhn(value) {
+    var sum = 0;
+    for (var i = 0; i < value.length; i++) {
+      var d = Number(value.charAt(value.length - 1 - i));
+      if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; }
+      sum += d;
+    }
+    return sum % 10 === 0;
+  }
+  function copyText(text, button) {
+    function done() { var old = button.textContent; button.textContent = "Скопировано"; setTimeout(function () { button.textContent = old; }, 1500); }
+    try { navigator.clipboard.writeText(text).then(done, function () { fallback(); }); } catch (e) { fallback(); }
+    function fallback() {
+      var area = document.createElement("textarea"); area.value = text; document.body.appendChild(area);
+      area.select(); try { document.execCommand("copy"); done(); } catch (e) {} document.body.removeChild(area);
+    }
+  }
+  $("dev-brand").addEventListener("click", function (event) {
+    var b = event.target.closest(".opt"); if (!b) return;
+    $("dev-brand").querySelectorAll(".opt").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    devBrand = b.dataset.v;
+    $("dev-serial-box").classList.toggle("hidden", devBrand !== "apple");
+    $("dev-result").classList.add("hidden");
+  });
+  $("dev-go").addEventListener("click", function () {
+    var imei = $("dev-imei").value.replace(/[\s().-]/g, "");
+    var serial = $("dev-serial").value.toUpperCase().replace(/[\s-]/g, "");
+    err($("dev-err"), "");
+    if (!/^\d{15}$/.test(imei) || !luhn(imei)) { err($("dev-err"), "IMEI должен состоять из 15 цифр и пройти проверку. Наберите *#06# на телефоне."); haptic("error"); return; }
+    if (devBrand === "apple" && serial && !/^[A-Z0-9]{8,16}$/.test(serial)) { err($("dev-err"), "Серийный номер Apple — 8–16 латинских букв и цифр."); haptic("error"); return; }
+    if (devBrand !== "apple") serial = "";
+    $("dev-masked").textContent = "IMEI ***********" + imei.slice(-4) + (serial ? " · серийный ****" + serial.slice(-4) : "");
+    var copy = $("dev-copy"); copy.innerHTML = "";
+    [["Скопировать IMEI", imei], ["Скопировать серийный", serial]].forEach(function (pair) {
+      if (!pair[1]) return;
+      var b = document.createElement("button"); b.type = "button"; b.className = "opt"; b.style.minHeight = "38px";
+      b.textContent = pair[0]; b.addEventListener("click", function () { copyText(pair[1], b); }); copy.appendChild(b);
+    });
+    var links = [
+      ["🇰🇿 KZ-IMEI", "Регистрация IMEI в Казахстане. Registered — зарегистрирован; NotRegistered — нет; Blocked — ограничение, уточните на портале.", "https://kz-imei.kz/landing-page"],
+      ["📡 RFS", "Дополнительная проверка регистрационного статуса.", "https://imei.rfs.gov.kz/"],
+      ["📱 Kcell / activ", "Участие в программе «Контрактный телефон». Согласие на обработку IMEI даёте вы на сайте.", "https://www.kcell.kz/shop/imei/"],
+      ["🔎 SNDeep / LoSToleN", "Заявления о потерянных/украденных устройствах. Отсутствие записи не доказывает чистоту.", "https://sndeep.info/en"]
+    ];
+    if (serial) links.push(["🍎 Apple Coverage", "Модель, активация и сервисное покрытие Apple — по серийному номеру.", "https://checkcoverage.apple.com/coverage?locale=en_US"]);
+    var box = $("dev-links"); box.innerHTML = "";
+    links.forEach(function (l) {
+      var row = document.createElement("a"); row.className = "basis"; row.href = l[2];
+      row.addEventListener("click", function (e) { e.preventDefault(); openUrl(l[2]); });
+      var left = document.createElement("div");
+      var t = document.createElement("b"); t.textContent = l[0];
+      var d = document.createElement("div"); d.className = "s"; d.textContent = l[1];
+      left.appendChild(t); left.appendChild(d);
+      var right = document.createElement("b"); right.style.color = "var(--accent)"; right.textContent = "↗";
+      row.appendChild(left); row.appendChild(right); box.appendChild(row);
+    });
+    $("dev-result").classList.remove("hidden");
+    haptic("success");
+  });
+  $("m-device").addEventListener("click", function () { err($("dev-err"), ""); show("device"); });
+
+  // ---- settings ----
+  function setPressed(groupId, value) {
+    $(groupId).querySelectorAll(".opt").forEach(function (x) { x.setAttribute("aria-pressed", String(x.dataset.v === value)); });
+  }
+  function renderSettings(data) {
+    var acc = $("set-account"); acc.innerHTML = "";
+    [["Имя", data.name], ["Роль", data.role], ["Доступ", data.active ? "активен" : "отключён"]].forEach(function (pair) {
+      var row = document.createElement("div"); row.className = "basis";
+      var k = document.createElement("span"); k.className = "s"; k.style.fontSize = "14px"; k.textContent = pair[0];
+      var v = document.createElement("b"); v.textContent = pair[1] || "—";
+      row.appendChild(k); row.appendChild(v); acc.appendChild(row);
+    });
+    $("set-edit").classList.toggle("hidden", !data.can_edit);
+    setPressed("set-region", data.region);
+    setPressed("set-notif", data.notifications ? "1" : "0");
+  }
+  function saveSettings(change) {
+    err($("set-err"), ""); $("set-saved").classList.add("hidden");
+    change.init_data = initData;
+    api("/api/settings", { method: "POST", body: JSON.stringify(change) }).then(function (data) {
+      if (data.error) { err($("set-err"), ERRORS[data.error] || "Не удалось сохранить."); haptic("error"); return; }
+      renderSettings(data); $("set-saved").classList.remove("hidden"); haptic("success");
+    });
+  }
+  $("set-region").addEventListener("click", function (event) {
+    var b = event.target.closest(".opt"); if (b) saveSettings({ region: b.dataset.v });
+  });
+  $("set-notif").addEventListener("click", function (event) {
+    var b = event.target.closest(".opt"); if (b) saveSettings({ notifications: b.dataset.v === "1" });
+  });
+  $("m-settings").addEventListener("click", function () {
+    show("settings"); err($("set-err"), ""); $("set-saved").classList.add("hidden");
+    api("/api/settings").then(function (data) {
+      if (data.error) { err($("set-err"), data.error === "not_found" ? "Обновите бота: настройки появятся после выпуска." : (ERRORS[data.error] || "Не удалось загрузить настройки.")); return; }
+      renderSettings(data);
+    });
+  });
+  $("m-help").addEventListener("click", function () { show("help"); });
+
   loadProfile();
   $("m-chat-open").addEventListener("click", function () { if (tg) tg.close(); });
   $("home-resume").addEventListener("click", function () { var j = loadJob(); if (j) openJob(j); else goHome(); });
