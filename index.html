@@ -73,6 +73,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <button class="menu hidden" id="m-history" type="button"><span class="ic">🕘</span><span id="m-history-t">Мои расчёты<div class="d">Прошлые оценки с ценами и ссылками</div></span></button>
 <button class="menu hidden" id="m-device" type="button"><span class="ic">🔎</span><span>Проверка устройства<div class="d">IMEI и серийный номер: KZ-IMEI, RFS, Kcell, SNDeep, Apple</div></span></button>
 <button class="menu hidden" id="m-monitor" type="button"><span class="ic">📡</span><span>Мониторинг цен<div class="d">Смартфоны A/B/C, история рынка, золото, выгодные предложения</div></span></button>
+<button class="menu hidden" id="m-manage" type="button"><span class="ic">🛠</span><span>Управление PricePilot<div class="d">Сотрудники и права, источники, настройки расчёта, состояние</div></span></button>
 <div class="duo">
 <button class="menu hidden" id="m-settings" type="button" style="padding:14px"><span class="ic">⚙️</span><span>Настройки</span></button>
 <button class="menu" id="m-help" type="button" style="padding:14px"><span class="ic">ℹ️</span><span>Помощь</span></button>
@@ -134,6 +135,10 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <header><h1 id="mon-title">Мониторинг цен</h1></header>
 <main>
 <div class="card mon" id="mon-text" aria-live="polite"></div>
+<div class="hidden" id="mon-input-box">
+<div class="input"><input id="mon-input" autocomplete="off" placeholder="Ответ на вопрос выше"></div>
+<button class="btn" id="mon-send" type="button" style="margin-top:10px">Отправить</button>
+</div>
 <div class="mbtns" id="mon-btns"></div>
 <div class="strip hidden" id="mon-alert"></div>
 <div class="err" id="mon-err" role="alert"></div>
@@ -581,11 +586,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("m-history-t").firstChild.nodeValue = f.history_all ? "История расчётов" : "Мои расчёты";
     $("m-device").classList.toggle("hidden", !f.device_check);
     $("m-monitor").classList.toggle("hidden", !f.monitor);
+    $("m-manage").classList.toggle("hidden", !f.manage);
     $("m-settings").classList.toggle("hidden", profile.name == null);
-    var chat = [];
-    if (f.manage) chat.push("Управление PricePilot");
-    $("m-chat-list").textContent = chat.join(" · ");
-    $("m-chat").classList.toggle("hidden", !chat.length);
+    $("m-chat").classList.add("hidden");
     $("hist-tabs").classList.toggle("hidden", !f.history_all);
     $("hist-title").textContent = f.history_all ? "История расчётов" : "Мои расчёты";
   }
@@ -733,18 +736,22 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   $("m-help").addEventListener("click", function () { show("help"); });
 
   // ---- monitoring: the chat's own screens, rendered here ----
-  var monStack = [];
-  function loadMonitor(action, push) {
+  var monStack = [], monKind = "monitor";
+  function loadMonitor(action, push, text) {
     err($("mon-err"), ""); $("mon-alert").classList.add("hidden");
     $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = true; });
     if (action === "monitor:opportunities") $("mon-text").textContent = "Проверяю OLX — это может занять до минуты…";
-    api("/api/monitor", { method: "POST", body: JSON.stringify({ init_data: initData, action: action }) }).then(function (data) {
+    var payload = { init_data: initData };
+    if (text != null) payload.text = text; else payload.action = action;
+    api("/api/" + monKind, { method: "POST", body: JSON.stringify(payload) }).then(function (data) {
       $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = false; });
       if (data.error) {
-        err($("mon-err"), data.error === "not_found" ? "Обновите бота: мониторинг появится после выпуска." : (ERRORS[data.error] || "Не удалось открыть раздел."));
+        err($("mon-err"), data.error === "not_found" ? "Обновите бота: раздел появится после выпуска." : (ERRORS[data.error] || "Не удалось открыть раздел."));
         return;
       }
-      if (push) monStack.push(action);
+      if (push && text == null) monStack.push(action);
+      $("mon-input-box").classList.toggle("hidden", !data.awaiting_text);
+      if (data.awaiting_text) { $("mon-input").value = ""; }
       // Server sends sanitized HTML: only b/i/u/s/code/pre/a(https) survive.
       $("mon-text").innerHTML = data.html || "";
       $("mon-text").querySelectorAll("a").forEach(function (a) {
@@ -769,7 +776,20 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       window.scrollTo(0, 0);
     });
   }
-  $("m-monitor").addEventListener("click", function () { monStack = []; show("monitor"); loadMonitor("monitor:menu", true); });
+  function openChatSection(kind, title, first) {
+    monKind = kind; monStack = [];
+    $("mon-title").textContent = title; $("mon-text").textContent = "";
+    $("mon-btns").innerHTML = ""; $("mon-input-box").classList.add("hidden");
+    show("monitor"); loadMonitor(first, true);
+  }
+  $("m-monitor").addEventListener("click", function () { openChatSection("monitor", "Мониторинг цен", "monitor:menu"); });
+  $("m-manage").addEventListener("click", function () { openChatSection("manage", "Управление", "admin:menu"); });
+  $("mon-send").addEventListener("click", function () {
+    var value = $("mon-input").value.trim();
+    if (!value) return;
+    loadMonitor(null, false, value);
+  });
+  $("mon-input").addEventListener("keydown", function (e) { if (e.key === "Enter") $("mon-send").click(); });
 
   loadProfile();
   $("m-chat-open").addEventListener("click", function () { if (tg) tg.close(); });
