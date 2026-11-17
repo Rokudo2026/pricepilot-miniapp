@@ -59,6 +59,13 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 .mon{padding:16px;font-size:15px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
 .mon a{color:var(--accent)}.mon code,.mon pre{font:13px ui-monospace,monospace;background:#F1F3F7;border-radius:6px;padding:1px 4px}
 .mbtns{display:flex;flex-direction:column;gap:8px}.mbtns .r{display:flex;gap:8px}.mbtns .r>button{flex:1;min-height:46px;font-size:14px;padding:8px 10px}
+.steps{padding:6px 0}.step{display:flex;align-items:center;gap:12px;padding:9px 16px;font-size:15px;color:#9AA3B2;transition:color .3s}
+.step .ic{width:24px;height:24px;border-radius:50%;border:2px solid #D5DBE5;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .3s}
+.step.on{color:var(--ink);font-weight:600}.step.on .ic{border-color:var(--accent);border-top-color:transparent;animation:spin 0.9s linear infinite}
+.step.ok{color:var(--ink)}.step.ok .ic{background:var(--accent);border-color:var(--accent);color:#fff;animation:none}
+.step .n{margin-left:auto;white-space:nowrap;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.tip{font-size:14px;color:#5B6577;min-height:42px;transition:opacity .4s}
+@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}.pop{animation:pop .35s ease}
 .hidden{display:none!important}
 </style>
 </head>
@@ -248,13 +255,15 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <main>
 <div><div class="big" id="wait-item"></div><div class="sub" id="wait-sub"></div></div>
 <div>
-<div class="row sub" style="margin-bottom:8px"><span>Ищу цены на OLX, Kaspi, в Telegram и в наших продажах</span><span id="wait-time"></span></div>
+<div class="row sub" style="margin-bottom:8px"><span id="wait-now">Начинаю</span><span id="wait-time"></span></div>
 <div class="bar"><div id="bar"></div></div>
 </div>
-<div class="card" style="padding:16px;display:flex;gap:12px;align-items:center">
-<div class="dot spin" aria-hidden="true"></div>
-<div class="sub" style="font-size:14px">Обычно это занимает до минуты. Можно выйти к форме или закрыть окно — результат сохранится здесь на 30 минут и придёт в чат с ботом.</div>
+<div class="card steps" id="wait-steps" aria-live="polite"></div>
+<div class="card" style="padding:14px 16px">
+<div class="label" style="margin-bottom:6px">Пока считаю</div>
+<div class="tip" id="wait-tip"></div>
 </div>
+<div class="sub" style="font-size:13px;text-align:center">Можно выйти в меню или закрыть окно — результат сохранится здесь на 30 минут.</div>
 <div class="card hidden" id="clarify" style="padding:16px">
 <div class="big" id="clarify-q" style="font-size:17px;margin-bottom:12px"></div>
 <div class="chips" id="clarify-opts"></div>
@@ -338,7 +347,13 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   }
   function money(v) { return v ? Number(v).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸" : "—"; }
   function err(box, text) { box.textContent = text; box.style.display = text ? "block" : "none"; }
-  function haptic(kind) { try { tg && tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} }
+  function haptic(kind) {
+    try {
+      if (!tg) return;
+      if (kind === "light" || kind === "medium") tg.HapticFeedback.impactOccurred(kind);
+      else tg.HapticFeedback.notificationOccurred(kind);
+    } catch (e) {}
+  }
 
   document.querySelectorAll("[data-group]").forEach(function (group) {
     group.addEventListener("click", function (event) {
@@ -417,7 +432,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("clarify").classList.add("hidden");
     $("bar").style.width = "0";
     err($("wait-err"), "");
-    startedAt = job.ts; show("wait"); poll(job.id);
+    startedAt = job.ts; lastStage = null; renderSteps(null); startTips(); show("wait"); poll(job.id);
   }
 
   function askClarify(c) {
@@ -448,20 +463,73 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     return parts.join(" · ");
   }
 
+  // Live analysis stages reported by the bot (job.live), with real counts.
+  var STEPS = [
+    ["validating", "Распознаю модель"],
+    ["collecting", "Ищу на OLX, Kaspi, в Telegram"],
+    ["filtering", "Убираю лишнее"],
+    ["comparing", "Сравниваю с похожими"],
+    ["calculating", "Считаю цену и закуп"],
+    ["preparing_links", "Готовлю ссылки"]
+  ];
+  var TIPS = [
+    "Для нового запечатанного основа цены — минимальная цена Kaspi под вашу версию SIM.",
+    "Если модель продавалась у нас недавно, бот опирается на наши продажи.",
+    "Внизу результата — все найденные объявления по источникам. Нажмите, чтобы открыть.",
+    "«Не подошли» — объявления, которые бот отбросил, с причиной: другая модель, память, выброс.",
+    "Если закуп не показан — подходящих объявлений мало. Посмотрите их и решите сами.",
+    "Для iPhone 14 и новее выбирайте SIM: версия «только eSIM» дешевле.",
+    "Ярлык на экран телефона: кнопка «📲 Добавить» в меню."
+  ];
+  var tipIndex = 0, tipTimer = null, lastStage = null;
+  function renderSteps(live) {
+    var box = $("wait-steps");
+    var current = live && live.stage ? live.stage : "validating";
+    var idx = STEPS.findIndex(function (st) { return st[0] === current; });
+    if (current === "building_result") idx = STEPS.length;
+    if (idx < 0) idx = 0;
+    box.innerHTML = "";
+    STEPS.forEach(function (st, i) {
+      var row = document.createElement("div"); row.className = "step" + (i < idx ? " ok" : i === idx ? " on" : "");
+      var ic = document.createElement("span"); ic.className = "ic"; ic.textContent = i < idx ? "✓" : "";
+      var t = document.createElement("span"); t.textContent = st[1];
+      row.appendChild(ic); row.appendChild(t);
+      var n = null;
+      if (live && st[0] === "collecting" && live.found != null) n = live.found + " найдено";
+      if (live && st[0] === "filtering" && live.filtered != null) n = live.filtered + " подходит";
+      if (live && st[0] === "comparing" && live.sources_count != null) n = live.sources_count + " источн.";
+      if (n && i <= idx) { var b = document.createElement("span"); b.className = "n" + (lastStage !== current ? " pop" : ""); b.textContent = n; row.appendChild(b); }
+      box.appendChild(row);
+    });
+    $("wait-now").textContent = idx < STEPS.length ? STEPS[idx][1] : "Готово";
+    if (live && live.warning) $("wait-now").textContent += " · один источник не ответил";
+    if (lastStage !== current) { lastStage = current; haptic("light"); }
+  }
+  function startTips() {
+    clearInterval(tipTimer);
+    var el = $("wait-tip");
+    function next() {
+      el.style.opacity = "0";
+      setTimeout(function () { el.textContent = TIPS[tipIndex % TIPS.length]; tipIndex++; el.style.opacity = "1"; }, 250);
+    }
+    next(); tipTimer = setInterval(next, 6000);
+  }
+
   function poll(jobId) {
     clearTimeout(pollTimer);
     api("/api/appraisals/" + encodeURIComponent(jobId)).then(function (data) {
       var seconds = Math.round((Date.now() - startedAt) / 1000);
       $("wait-time").textContent = seconds + " сек";
       if (data.progress) $("bar").style.width = Math.round(data.progress * 100) + "%";
-      if (data.status === "done") { render(data.result); haptic("success"); return; }
+      renderSteps(data.live);
+      if (data.status === "done") { clearInterval(tipTimer); render(data.result); haptic("success"); return; }
       if (data._status === 404) { saveJob(null); err($("wait-err"), "Эта оценка уже недоступна. Начните новую."); return; }
       if (data.status === "error" || data.error) {
         saveJob(null);
         err($("wait-err"), ERRORS[data.error] || "Оценка не получилась. Подробности — в чате с ботом.");
         haptic("error"); return;
       }
-      pollTimer = setTimeout(function () { poll(jobId); }, 3000);
+      pollTimer = setTimeout(function () { poll(jobId); }, 1500);
     });
   }
 
