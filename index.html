@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PricePilot — оценка</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="config.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
 <style>
@@ -92,6 +93,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 </div>
 <button class="btn ghost hidden" id="m-homescreen" type="button" style="min-height:46px;font-size:15px">📲 Добавить PricePilot на экран телефона</button>
 <div class="err" id="home-err" role="alert"></div>
+<button class="btn ghost hidden" id="home-retry" type="button">Повторить</button>
 <button class="btn ghost hidden" id="m-copyid" type="button" style="min-height:46px;font-size:15px">Скопировать мой Telegram ID</button>
 </main>
 </section>
@@ -107,6 +109,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="sub hidden" id="hist-empty" style="text-align:center;padding:24px 0">Расчётов пока нет</div>
 <button class="btn ghost hidden" id="hist-more" type="button">Показать ещё</button>
 <div class="err" id="hist-err" role="alert"></div>
+<div class="sub hidden" id="hist-state" role="status">Загрузка…</div>
+<button class="btn ghost hidden" id="hist-retry" type="button">Повторить</button>
 </main>
 </section>
 
@@ -151,6 +155,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="mbtns" id="mon-btns"></div>
 <div class="strip hidden" id="mon-alert"></div>
 <div class="err" id="mon-err" role="alert"></div>
+<div class="sub hidden" id="mon-state" role="status">Загрузка…</div>
+<button class="btn ghost hidden" id="mon-retry" type="button">Повторить</button>
 </main>
 </section>
 
@@ -177,6 +183,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 </div>
 <div class="strip okstrip hidden" id="set-saved">Сохранено</div>
 <div class="err" id="set-err" role="alert"></div>
+<div class="sub hidden" id="set-state" role="status">Загрузка…</div>
+<button class="btn ghost hidden" id="set-retry" type="button">Повторить</button>
 </main>
 </section>
 
@@ -306,7 +314,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   var tg = window.Telegram && window.Telegram.WebApp;
   if (tg) { tg.ready(); tg.expand(); }
   var params = new URLSearchParams(location.search);
-  var API = (params.get("api") || "").replace(/\/+$/, "");
+  var API = (params.get("api") || (window.PRICEPILOT_CONFIG || {}).api || "").replace(/\/+$/, "");
   var initData = tg ? tg.initData : "";
   var state = { mode: "purchase", storage: "256", condition: "excellent", sim: "physical_sim_present", box: false, defects: {} };
   function simRelevant(text) {
@@ -331,9 +339,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     var text = $("model").value;
     $("sim-box").classList.toggle("hidden", !simRelevant(text));
     // Samsung and others do not show battery health; the slider is for Apple only.
-    $("battery-box").classList.toggle("hidden", state.condition === "new" || !isApple(text));
+    $("battery-box").classList.toggle("hidden", state.mode === "sale" || state.condition === "new" || !isApple(text));
     // Sealed new device: box is implied, defects are impossible.
-    $("kit-box").classList.toggle("hidden", state.condition === "new");
+    $("kit-box").classList.toggle("hidden", state.mode === "sale" || state.condition === "new");
     $("def-faceid").classList.toggle("hidden", !isIphone(text));
   }
 
@@ -383,19 +391,51 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     already_running: "Предыдущая оценка ещё идёт. Подождите минуту.",
     rate_limited: "Слишком много оценок за час. Попробуйте позже.",
     query_required: "Введите модель.",
-    network: "Нет связи с ботом. Проверьте интернет или попробуйте позже."
+    network: "Нет связи с ботом. Проверьте интернет или попробуйте позже.",
+    timeout: "Бот не ответил вовремя. Попробуйте ещё раз.",
+    missing_api: "Не задан адрес бота. Откройте приложение кнопкой из бота.",
+    invalid_response: "Бот вернул неполные данные. Обновите приложение и повторите.",
+    kaspi_price_unavailable: "Нет подтверждённой цены Kaspi для этой модели и модификации. Цена не рассчитана."
   };
 
   function api(path, options) {
     options = options || {};
+    if (!API) return Promise.resolve({ error: "missing_api" });
+    if (!initData) return Promise.resolve({ error: "unauthorized" });
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 25000);
     var headers = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1", "X-Init-Data": initData };
-    return fetch(API + path, { method: options.method || "GET", headers: headers, body: options.body })
+    return fetch(API + path, { method: options.method || "GET", headers: headers, body: options.body, signal: controller.signal })
       .then(function (response) {
-        return response.json().then(function (data) { data._status = response.status; return data; },
-          function () { return { error: response.status === 404 ? "not_found" : "network", _status: response.status }; });
+        return response.json().then(function (data) {
+          if (!data || typeof data !== "object" || Array.isArray(data)) data = { error: "invalid_response" };
+          if (!response.ok && !data.error) data.error = response.status === 401 ? "unauthorized" : "server_error";
+          if (!data.error && (
+            (path === "/api/me" && !data.features) ||
+            (/^\/api\/history\?/.test(path) && !Array.isArray(data.items)) ||
+            (/^\/api\/(monitor|manage)$/.test(path) && (!Array.isArray(data.buttons) || (!data.html && !data.buttons.length && !data.alert))) ||
+            (path === "/api/settings" && !data.region)
+          )) data.error = "invalid_response";
+          data._status = response.status; return data;
+        }, function () { return { error: response.status === 404 ? "not_found" : "invalid_response", _status: response.status }; });
       })
-      .catch(function () { return { error: "network" }; });
+      .catch(function (error) { return { error: error.name === "AbortError" ? "timeout" : "network" }; })
+      .finally(function () { clearTimeout(timer); });
   }
+
+  function loadState(prefix, loading, failed) {
+    $(prefix + "-state").classList.toggle("hidden", !loading);
+    $(prefix + "-retry").classList.toggle("hidden", !failed);
+  }
+  function failure(data) {
+    if (data.error === "unauthorized") return "Сессия Telegram недействительна или устарела. Закройте приложение и откройте кнопкой из бота.";
+    return "Не удалось загрузить. " + (ERRORS[data.error] || "Ответ бота: " + data.error + (data._status ? " (HTTP " + data._status + ")" : ""));
+  }
+  window.addEventListener("unhandledrejection", function () {
+    var prefix = { history: "hist", monitor: "mon", settings: "set", home: "home", form: "form", wait: "wait" }[screenNow] || "home";
+    err($(prefix + "-err"), ERRORS.invalid_response);
+    if (["hist", "mon", "set"].indexOf(prefix) >= 0) loadState(prefix, false, true);
+  });
 
   $("go").addEventListener("click", function () {
     var query = $("model").value.trim();
@@ -404,8 +444,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     err($("form-err"), "");
     var item = {
       query: query, storage_gb: Number(state.storage), condition: state.condition,
-      battery: state.condition === "new" || !isApple(query) ? null : Number($("battery").value), box: state.condition === "new" ? true : state.box,
-      defects: state.condition === "new" ? [] : Object.keys(state.defects).filter(function (k) { return state.defects[k] && (k !== "face_id" || isIphone(query)); }),
+      battery: state.mode === "sale" || state.condition === "new" || !isApple(query) ? null : Number($("battery").value), box: state.condition === "new" ? true : state.box,
+      defects: state.mode === "sale" || state.condition === "new" ? [] : Object.keys(state.defects).filter(function (k) { return state.defects[k] && (k !== "face_id" || isIphone(query)); }),
       sim_variant: simRelevant(query) ? state.sim : null,
       mode: state.mode
     };
@@ -527,7 +567,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       if (data._status === 404) { saveJob(null); err($("wait-err"), "Эта оценка уже недоступна. Начните новую."); return; }
       if (data.status === "error" || data.error) {
         saveJob(null);
-        err($("wait-err"), ERRORS[data.error] || "Оценка не получилась. Подробности — в чате с ботом.");
+        err($("wait-err"), ERRORS[data.error] || "Оценка не получилась. Вернитесь в меню и повторите запрос.");
         haptic("error"); return;
       }
       pollTimer = setTimeout(function () { poll(jobId); }, 1500);
@@ -598,7 +638,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     if (r.clarify) { askClarify(r.clarify); haptic("warning"); return; }
     if (!r.complete) {
       saveJob(null);
-      err($("wait-err"), "Бот не смог посчитать эту модель. Подробности — в чате с ботом.");
+      err($("wait-err"), "Бот не смог посчитать эту модель. Вернитесь в меню и проверьте параметры.");
       return;
     }
     $("res-title").textContent = r.title || "";
@@ -664,7 +704,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     state.mode = mode;
     $("form-title").textContent = mode === "sale" ? "Выставить цену" : "Оценить закуп";
     $("go").textContent = mode === "sale" ? "Рассчитать цену" : "Оценить";
-    refreshResume(); err($("form-err"), ""); show("form");
+    updateModelDependent(); refreshResume(); err($("form-err"), ""); show("form");
   }
   function goHome() {
     clearTimeout(pollTimer);
@@ -674,13 +714,14 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     show("home");
   }
   function loadProfile() {
+    $("home-retry").classList.add("hidden"); err($("home-err"), "");
     if (!API || !initData) { err($("home-err"), API ? ERRORS.unauthorized : "Не задан адрес бота. Откройте приложение кнопкой из бота."); return; }
     api("/api/me").then(function (data) {
       if (data.error) {
         // Older bot without /api/me: keep the appraisal working.
         if (data._status === 404) { profile = { features: { purchase: true } }; applyProfile(); return; }
-        if (data.error === "access_denied" || data.error === "unauthorized") { showNoAccess(); return; }
-        err($("home-err"), ERRORS[data.error] || "Не удалось загрузить меню."); return;
+        if (data.error === "access_denied") { showNoAccess(); return; }
+        err($("home-err"), failure(data)); $("home-retry").classList.remove("hidden"); return;
       }
       profile = data; applyProfile();
     });
@@ -713,12 +754,18 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("hist-tabs").classList.toggle("hidden", !f.history_all);
     $("hist-title").textContent = f.history_all ? "История расчётов" : "Мои расчёты";
   }
+  var historyRequest = 0;
   function loadHistory(reset) {
+    var request = ++historyRequest;
     if (reset) { histOffset = 0; $("hist-list").innerHTML = ""; }
+    $("hist-list").parentElement.classList.toggle("hidden", !$("hist-list").children.length);
     err($("hist-err"), "");
+    loadState("hist", true, false); $("hist-empty").classList.add("hidden");
     $("hist-more").classList.add("hidden");
     api("/api/history?scope=" + histScope + "&offset=" + histOffset).then(function (data) {
-      if (data.error) { err($("hist-err"), ERRORS[data.error] || "Не удалось загрузить историю."); return; }
+      if (request !== historyRequest) return;
+      loadState("hist", false, !!data.error);
+      if (data.error) { err($("hist-err"), failure(data)); return; }
       var list = $("hist-list");
       (data.items || []).forEach(function (it) {
         var row = document.createElement("button"); row.type = "button"; row.className = "hrow";
@@ -733,13 +780,16 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
         list.appendChild(row);
       });
       $("hist-empty").classList.toggle("hidden", list.children.length > 0);
+      list.parentElement.classList.toggle("hidden", !list.children.length);
       histOffset = data.next_offset || 0;
       $("hist-more").classList.toggle("hidden", data.next_offset == null);
     });
   }
   function openHistoryItem(id) {
+    loadState("hist", true, false);
     api("/api/history/" + id).then(function (data) {
-      if (data.error) { err($("hist-err"), ERRORS[data.error] || "Не удалось открыть расчёт."); return; }
+      loadState("hist", false, !!data.error);
+      if (data.error) { err($("hist-err"), failure(data)); return; }
       histFrom = "history";
       if (data.mode) state.mode = data.mode;
       render(data);
@@ -749,6 +799,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   $("m-sale").addEventListener("click", function () { openForm("sale"); });
   $("m-history").addEventListener("click", function () { show("history"); loadHistory(true); });
   $("hist-more").addEventListener("click", function () { loadHistory(false); });
+  $("hist-retry").addEventListener("click", function () { loadHistory(true); });
+  $("home-retry").addEventListener("click", loadProfile);
   $("hist-tabs").addEventListener("click", function (event) {
     var b = event.target.closest(".opt"); if (!b) return;
     $("hist-tabs").querySelectorAll(".opt").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
@@ -847,39 +899,50 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   $("set-notif").addEventListener("click", function (event) {
     var b = event.target.closest(".opt"); if (b) saveSettings({ notifications: b.dataset.v === "1" });
   });
-  $("m-settings").addEventListener("click", function () {
+  function openSettings() {
     show("settings"); err($("set-err"), ""); $("set-saved").classList.add("hidden");
+    loadState("set", true, false);
     api("/api/settings").then(function (data) {
-      if (data.error) { err($("set-err"), data.error === "not_found" ? "Обновите бота: настройки появятся после выпуска." : (ERRORS[data.error] || "Не удалось загрузить настройки.")); return; }
+      loadState("set", false, !!data.error);
+      if (data.error) { err($("set-err"), failure(data)); return; }
       renderSettings(data);
     });
-  });
+  }
+  $("m-settings").addEventListener("click", openSettings);
+  $("set-retry").addEventListener("click", openSettings);
   $("m-help").addEventListener("click", function () { show("help"); });
 
   // ---- monitoring: the chat's own screens, rendered here ----
-  var monStack = [], monKind = "monitor";
+  var monStack = [], monKind = "monitor", monRequest = 0, monLastAction = null;
   function monEntry() { return monKind === "manage" ? "admin:menu" : "monitor:menu"; }
   function loadMonitor(action, push, text) {
+    var request = ++monRequest;
+    if (text == null) monLastAction = action;
     err($("mon-err"), ""); $("mon-alert").classList.add("hidden");
+    loadState("mon", true, false);
+    if (!$("mon-text").textContent) $("mon-text").textContent = "Загрузка…";
     $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = true; });
     if (action === "monitor:opportunities") $("mon-text").textContent = "Проверяю OLX — это может занять до минуты…";
     var payload = { init_data: initData };
     if (text != null) payload.text = text; else payload.action = action;
     api("/api/" + monKind, { method: "POST", body: JSON.stringify(payload) }).then(function (data) {
+      if (request !== monRequest) return;
+      loadState("mon", false, !!data.error);
       $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = false; });
       if (data.error === "bad_request" && text == null && action !== monEntry()) {
         // The bot only accepts buttons from the latest screen: reopen the section.
         loadMonitor(monEntry(), true); return;
       }
       if (data.error) {
-        err($("mon-err"), data.error === "not_found" ? "Обновите бота: раздел появится после выпуска." : (ERRORS[data.error] || "Не удалось открыть раздел."));
+        $("mon-text").textContent = "Не удалось загрузить раздел.";
+        err($("mon-err"), failure(data));
         return;
       }
       if (push && text == null) monStack.push(action);
       $("mon-input-box").classList.toggle("hidden", !data.awaiting_text);
       if (data.awaiting_text) { $("mon-input").value = ""; }
       // Server sends sanitized HTML: only b/i/u/s/code/pre/a(https) survive.
-      $("mon-text").innerHTML = data.html || "";
+      $("mon-text").innerHTML = data.html || data.alert || "Пусто. Данных для этого раздела пока нет.";
       $("mon-text").querySelectorAll("a").forEach(function (a) {
         a.addEventListener("click", function (e) { e.preventDefault(); openUrl(a.getAttribute("href")); });
       });
@@ -909,6 +972,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   }
   $("m-monitor").addEventListener("click", function () { openChatSection("monitor", "Мониторинг цен", "monitor:menu"); });
   $("m-manage").addEventListener("click", function () { openChatSection("manage", "Управление", "admin:menu"); });
+  $("mon-retry").addEventListener("click", function () { loadMonitor(monEntry(), true); });
   $("mon-send").addEventListener("click", function () {
     var value = $("mon-input").value.trim();
     if (!value) return;
