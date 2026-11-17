@@ -49,12 +49,49 @@ input[type=range]{width:100%;accent-color:var(--accent);height:28px}
 .basis{display:flex;justify-content:space-between;gap:12px;padding:10px 16px;border-bottom:1px solid #EEF1F5;font-size:14px}.basis:last-child{border-bottom:none}
 a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.basis .t{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .basis b{font-weight:600}.basis .s{font-size:12px;color:#5B6577}
+.menu{display:flex;align-items:center;gap:14px;width:100%;padding:16px;border:1px solid var(--line);border-radius:16px;background:#fff;font:600 16px Inter,sans-serif;color:var(--ink);text-align:left;cursor:pointer}
+.menu .ic{width:40px;height:40px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.menu .d{font:400 13px Inter,sans-serif;color:#5B6577;margin-top:2px}
+.menu.primary{background:var(--accent);border-color:var(--accent);color:#fff}.menu.primary .ic{background:rgba(255,255,255,.18)}.menu.primary .d{color:#DCE6FF}
+.hrow{display:flex;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #EEF1F5;cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;font:inherit;color:inherit}.hrow:last-child{border-bottom:none}
+.hrow .t{font-weight:600;font-size:15px}.hrow .s{font-size:12px;color:#5B6577;margin-top:2px}.hrow b{white-space:nowrap;font-size:14px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .hidden{display:none!important}
 </style>
 </head>
 <body>
 
-<section id="form" class="screen on" aria-labelledby="form-title">
+<section id="home" class="screen on" aria-labelledby="home-title">
+<header><div><h1 id="home-title">PricePilot</h1><div class="sub" id="home-sub">Оценка техники по рынку</div></div></header>
+<main>
+<button class="strip okstrip hidden" id="home-resume" type="button" style="border:0;width:100%;cursor:pointer;text-align:left"><span id="home-resume-t"></span><b>Открыть</b></button>
+<button class="menu primary hidden" id="m-purchase" type="button"><span class="ic">💰</span><span>Оценить закуп<div class="d">Сколько дать клиенту — на время или на продажу</div></span></button>
+<button class="menu hidden" id="m-sale" type="button"><span class="ic">🏷️</span><span>Выставить цену<div class="d">Цена продажи наличными и в рассрочку</div></span></button>
+<button class="menu hidden" id="m-history" type="button"><span class="ic">🕘</span><span id="m-history-t">Мои расчёты<div class="d">Прошлые оценки с ценами и ссылками</div></span></button>
+<div class="card hidden" id="m-chat" style="padding:14px 16px">
+<div class="label" style="margin-bottom:6px">Пока в чате с ботом</div>
+<div class="sub" id="m-chat-list" style="font-size:14px;line-height:1.5"></div>
+<button class="btn ghost" id="m-chat-open" type="button" style="margin-top:12px;min-height:44px;font-size:15px">Открыть чат</button>
+</div>
+<div class="err" id="home-err" role="alert"></div>
+</main>
+</section>
+
+<section id="history" class="screen" aria-labelledby="hist-title">
+<header><h1 id="hist-title">Мои расчёты</h1></header>
+<main>
+<div class="tabs hidden" id="hist-tabs" role="group">
+<button class="opt" type="button" data-scope="mine" aria-pressed="true">Мои</button>
+<button class="opt" type="button" data-scope="all" aria-pressed="false">Все сотрудники</button>
+</div>
+<div class="card" style="padding:0"><div id="hist-list"></div></div>
+<div class="sub hidden" id="hist-empty" style="text-align:center;padding:24px 0">Расчётов пока нет</div>
+<button class="btn ghost hidden" id="hist-more" type="button">Показать ещё</button>
+<div class="err" id="hist-err" role="alert"></div>
+</main>
+</section>
+
+<section id="form" class="screen" aria-labelledby="form-title">
 <header><h1 id="form-title">Новая оценка</h1></header>
 <main>
 <div>
@@ -134,12 +171,12 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <header><div><h1 id="res-title"></h1><div class="sub" id="res-sub"></div></div></header>
 <main>
 <div class="hero" id="hero">
-<div class="row"><span style="font-size:14px;color:#DCE6FF">Рекомендуемый закуп</span><span class="pill" id="res-rel"></span></div>
+<div class="row"><span style="font-size:14px;color:#DCE6FF" id="res-hero-k">Рекомендуемый закуп</span><span class="pill" id="res-rel"></span></div>
 <div class="amount" id="res-buy"></div>
 <div class="note" id="res-max-box"><span id="res-max"></span></div>
 </div>
 <div class="strip warnstrip hidden" id="res-withheld" role="status">Рынок подтверждён недостаточно — сумму закупа бот не показывает. Нужна оценка эксперта.</div>
-<div class="duo">
+<div class="duo" id="res-sale-tiles">
 <div class="tile"><span class="k">Продажа наличными</span><span class="v" id="res-cash"></span></div>
 <div class="tile"><span class="k">В рассрочку</span><span class="v" id="res-inst"></span></div>
 </div>
@@ -154,7 +191,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div id="res-list"></div>
 </div>
 </main>
-<div class="footer duo"><button class="btn ghost" id="res-chat" type="button">Подробно в чате</button><button class="btn" id="res-new" type="button">Новая оценка</button></div>
+<div class="footer duo"><button class="btn ghost" id="res-chat" type="button">Подробно в чате</button><button class="btn" id="res-new" type="button">Новый расчёт</button></div>
 </section>
 
 <script>
@@ -165,7 +202,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   var params = new URLSearchParams(location.search);
   var API = (params.get("api") || "").replace(/\/+$/, "");
   var initData = tg ? tg.initData : "";
-  var state = { storage: "256", condition: "excellent", sim: "physical_sim_present", box: false, defects: {} };
+  var state = { mode: "purchase", storage: "256", condition: "excellent", sim: "physical_sim_present", box: false, defects: {} };
   function simRelevant(text) {
     var t = (text || "").toLowerCase();
     if (/(iphone|айфон)\s*air/.test(t)) return true;
@@ -195,7 +232,13 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   }
 
   function $(id) { return document.getElementById(id); }
-  function show(id) { ["form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); }); window.scrollTo(0, 0); }
+  var screenNow = "home";
+  function show(id) {
+    screenNow = id;
+    ["home", "history", "form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); });
+    window.scrollTo(0, 0);
+    try { if (tg && tg.BackButton) { if (id === "home") tg.BackButton.hide(); else tg.BackButton.show(); } } catch (e) {}
+  }
   function money(v) { return v ? Number(v).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸" : "—"; }
   function err(box, text) { box.textContent = text; box.style.display = text ? "block" : "none"; }
   function haptic(kind) { try { tg && tg.HapticFeedback.notificationOccurred(kind); } catch (e) {} }
@@ -221,6 +264,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 
   var ERRORS = {
     bad_variant: "Вариант модели не распознан. Начните оценку заново.",
+    bad_mode: "Обновите приложение: закройте и откройте его снова.",
+    server_error: "Бот не смог открыть данные. Попробуйте ещё раз.",
     unauthorized: "Откройте приложение из бота PricePilot в Telegram.",
     access_denied: "У вас нет доступа к PricePilot. Обратитесь к администратору.",
     already_running: "Предыдущая оценка ещё идёт. Подождите минуту.",
@@ -233,7 +278,10 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     options = options || {};
     var headers = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1", "X-Init-Data": initData };
     return fetch(API + path, { method: options.method || "GET", headers: headers, body: options.body })
-      .then(function (response) { return response.json().then(function (data) { data._status = response.status; return data; }); })
+      .then(function (response) {
+        return response.json().then(function (data) { data._status = response.status; return data; },
+          function () { return { error: response.status === 404 ? "not_found" : "network", _status: response.status }; });
+      })
       .catch(function () { return { error: "network" }; });
   }
 
@@ -246,7 +294,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       query: query, storage_gb: Number(state.storage), condition: state.condition,
       battery: state.condition === "new" || !isApple(query) ? null : Number($("battery").value), box: state.condition === "new" ? true : state.box,
       defects: state.condition === "new" ? [] : Object.keys(state.defects).filter(function (k) { return state.defects[k] && (k !== "face_id" || isIphone(query)); }),
-      sim_variant: simRelevant(query) ? state.sim : null
+      sim_variant: simRelevant(query) ? state.sim : null,
+      mode: state.mode
     };
     submit(item, $("go"), $("form-err"));
   });
@@ -258,7 +307,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       button.disabled = false;
       if (!data.job_id) { err(errBox, ERRORS[data.error] || "Не удалось начать оценку."); haptic("error"); return; }
       var label = item.query + " " + storageText(item.storage_gb);
-      currentJob = { id: data.job_id, ts: Date.now(), label: label, sub: describe(item) };
+      currentJob = { id: data.job_id, ts: Date.now(), label: label, sub: describe(item), mode: item.mode };
       saveJob(currentJob);
       openJob(currentJob);
     });
@@ -355,20 +404,26 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("res-title").textContent = r.title || "";
     $("res-sub").textContent = [r.condition, r.battery && !/^Нов/.test(r.condition || "") ? "АКБ " + r.battery + "%" : ""].filter(Boolean).join(" · ");
     var p = r.purchase || {};
-    $("hero").classList.toggle("hidden", !!p.withheld);
+    var sale = r.sale || {};
+    var saleMode = r.mode === "sale";
+    if (saleMode) p = { withheld: false };
+    $("hero").classList.toggle("hidden", !!p.withheld || (saleMode && !sale.cash));
     $("res-withheld").classList.toggle("hidden", !p.withheld);
-    $("res-buy").textContent = money(p.recommended);
+    $("res-hero-k").textContent = saleMode ? "Цена продажи наличными" : "Рекомендуемый закуп";
+    $("res-buy").textContent = money(saleMode ? sale.cash : p.recommended);
     $("res-max").innerHTML = "";
     var maxText = document.createElement("span");
-    maxText.textContent = p.maximum ? "Максимум — " + money(p.maximum) + ", дороже не брать" : "";
+    maxText.textContent = saleMode ? (sale.installment ? "В рассрочку — " + money(sale.installment) : "")
+      : (p.maximum ? "Максимум — " + money(p.maximum) + ", дороже не брать" : "");
     $("res-max").appendChild(maxText);
-    $("res-max-box").classList.toggle("hidden", !p.maximum);
+    $("res-max-box").classList.toggle("hidden", !maxText.textContent);
+    $("res-sale-tiles").classList.toggle("hidden", saleMode);
     $("res-rel").textContent = r.reliability ? "Надёжность: " + r.reliability : "";
     $("res-cash").textContent = money((r.sale || {}).cash);
     $("res-inst").textContent = money((r.sale || {}).installment);
     var m = r.margin || {};
     $("res-margin").textContent = m.min ? money(m.min) + (m.max && m.max !== m.min ? " – " + money(m.max) : "") : "—";
-    $("res-margin-box").classList.toggle("hidden", !m.min || p.withheld);
+    $("res-margin-box").classList.toggle("hidden", !m.min || p.withheld || saleMode);
     $("res-partial").classList.toggle("hidden", !r.partially_confirmed || p.withheld);
     var basis = $("res-basis"); basis.innerHTML = "";
     function line(name, note, value) {
@@ -379,6 +434,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       var right = document.createElement("b"); right.textContent = value;
       row.appendChild(left); row.appendChild(right); basis.appendChild(row);
     }
+    if (r.history) $("res-sub").textContent = [$("res-sub").textContent, "расчёт от " + r.history.date].filter(Boolean).join(" · ");
     if (r.own_sales) line("Наши продажи", r.own_sales.count + " за 90 дней — основа цены", money(r.own_sales.min) + " – " + money(r.own_sales.max));
     (r.sources || []).forEach(function (s) {
       var note = s.ok ? (s.found != null ? "найдено " + s.found : "есть данные") : (s.note || "недоступен");
@@ -391,14 +447,112 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   }
 
   // Back keeps the job: the form shows "Последняя оценка — Открыть".
-  $("wait-back").addEventListener("click", function () { clearTimeout(pollTimer); refreshResume(); show("form"); });
-  $("res-new").addEventListener("click", function () { refreshResume(); show("form"); });
+  $("wait-back").addEventListener("click", function () { clearTimeout(pollTimer); goHome(); });
+  $("wait-back").textContent = "В меню";
+  $("res-new").addEventListener("click", function () { openForm(state.mode); });
   $("resume").addEventListener("click", function () { var j = loadJob(); if (j) openJob(j); else refreshResume(); });
   updateModelDependent();
   // Reopened while an appraisal was still running: go straight to it.
-  (function () { var j = loadJob(); if (j && !j.viewed && API) openJob(j); else refreshResume(); })();
+  (function () { var j = loadJob(); if (j && !j.viewed && API) openJob(j); else { refreshResume(); goHome(); } })();
   $("res-chat").addEventListener("click", function () { if (tg) tg.close(); });
+
+  // ---- home menu, history ----
+  var profile = null, histScope = "mine", histOffset = 0, histFrom = "home";
+  function openForm(mode) {
+    state.mode = mode;
+    $("form-title").textContent = mode === "sale" ? "Выставить цену" : "Оценить закуп";
+    $("go").textContent = mode === "sale" ? "Рассчитать цену" : "Оценить";
+    refreshResume(); err($("form-err"), ""); show("form");
+  }
+  function goHome() {
+    clearTimeout(pollTimer);
+    var j = loadJob();
+    $("home-resume").classList.toggle("hidden", !j);
+    if (j) $("home-resume-t").textContent = "Последняя оценка: " + j.label;
+    show("home");
+  }
+  function loadProfile() {
+    if (!API || !initData) { err($("home-err"), API ? ERRORS.unauthorized : "Не задан адрес бота. Откройте приложение кнопкой из бота."); return; }
+    api("/api/me").then(function (data) {
+      if (data.error) {
+        // Older bot without /api/me: keep the appraisal working.
+        if (data._status === 404) { profile = { features: { purchase: true } }; applyProfile(); return; }
+        err($("home-err"), ERRORS[data.error] || "Не удалось загрузить меню."); return;
+      }
+      profile = data; applyProfile();
+    });
+  }
+  function applyProfile() {
+    var f = profile.features || {};
+    if (profile.name) $("home-sub").textContent = "Здравствуйте, " + profile.name;
+    $("m-purchase").classList.toggle("hidden", !f.purchase);
+    $("m-sale").classList.toggle("hidden", !f.sale);
+    $("m-history").classList.toggle("hidden", !f.history);
+    $("m-history-t").firstChild.nodeValue = f.history_all ? "История расчётов" : "Мои расчёты";
+    var chat = [];
+    if (f.device_check) chat.push("Проверка устройства");
+    if (f.monitor) chat.push("Мониторинг цен");
+    if (f.settings) chat.push("Мои настройки");
+    if (f.manage) chat.push("Управление PricePilot");
+    chat.push("Помощь");
+    $("m-chat-list").textContent = chat.join(" · ");
+    $("m-chat").classList.remove("hidden");
+    $("hist-tabs").classList.toggle("hidden", !f.history_all);
+    $("hist-title").textContent = f.history_all ? "История расчётов" : "Мои расчёты";
+  }
+  function loadHistory(reset) {
+    if (reset) { histOffset = 0; $("hist-list").innerHTML = ""; }
+    err($("hist-err"), "");
+    $("hist-more").classList.add("hidden");
+    api("/api/history?scope=" + histScope + "&offset=" + histOffset).then(function (data) {
+      if (data.error) { err($("hist-err"), ERRORS[data.error] || "Не удалось загрузить историю."); return; }
+      var list = $("hist-list");
+      (data.items || []).forEach(function (it) {
+        var row = document.createElement("button"); row.type = "button"; row.className = "hrow";
+        var left = document.createElement("div");
+        var t = document.createElement("div"); t.className = "t"; t.textContent = it.title || "Без названия";
+        var s = document.createElement("div"); s.className = "s";
+        s.textContent = [it.date, it.mode === "sale" ? "цена продажи" : it.mode === "purchase" ? "закуп" : "", it.author].filter(Boolean).join(" · ");
+        left.appendChild(t); left.appendChild(s);
+        var right = document.createElement("b"); right.textContent = (it.summary || "").replace(/^(Закуп|Продажа):\s*/, "");
+        row.appendChild(left); row.appendChild(right);
+        row.addEventListener("click", function () { openHistoryItem(it.id); });
+        list.appendChild(row);
+      });
+      $("hist-empty").classList.toggle("hidden", list.children.length > 0);
+      histOffset = data.next_offset || 0;
+      $("hist-more").classList.toggle("hidden", data.next_offset == null);
+    });
+  }
+  function openHistoryItem(id) {
+    api("/api/history/" + id).then(function (data) {
+      if (data.error) { err($("hist-err"), ERRORS[data.error] || "Не удалось открыть расчёт."); return; }
+      histFrom = "history";
+      if (data.mode) state.mode = data.mode;
+      render(data);
+    });
+  }
+  $("m-purchase").addEventListener("click", function () { openForm("purchase"); });
+  $("m-sale").addEventListener("click", function () { openForm("sale"); });
+  $("m-history").addEventListener("click", function () { show("history"); loadHistory(true); });
+  $("hist-more").addEventListener("click", function () { loadHistory(false); });
+  $("hist-tabs").addEventListener("click", function (event) {
+    var b = event.target.closest(".opt"); if (!b) return;
+    $("hist-tabs").querySelectorAll(".opt").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    histScope = b.dataset.scope; loadHistory(true);
+  });
+  loadProfile();
+  $("m-chat-open").addEventListener("click", function () { if (tg) tg.close(); });
+  $("home-resume").addEventListener("click", function () { var j = loadJob(); if (j) openJob(j); else goHome(); });
+  try {
+    if (tg && tg.BackButton) tg.BackButton.onClick(function () {
+      if (screenNow === "result" && histFrom === "history") { histFrom = "home"; show("history"); return; }
+      goHome();
+    });
+  } catch (e) {}
   if (!initData) err($("form-err"), ERRORS.unauthorized);
+  // A finished appraisal opened from the form returns to the menu, not to history.
+  $("go").addEventListener("click", function () { histFrom = "home"; });
 })();
 </script>
 </body>
