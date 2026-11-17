@@ -56,6 +56,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 .hrow{display:flex;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #EEF1F5;cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left;font:inherit;color:inherit}.hrow:last-child{border-bottom:none}
 .hrow .t{font-weight:600;font-size:15px}.hrow .s{font-size:12px;color:#5B6577;margin-top:2px}.hrow b{white-space:nowrap;font-size:14px}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mon{padding:16px;font-size:15px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+.mon a{color:var(--accent)}.mon code,.mon pre{font:13px ui-monospace,monospace;background:#F1F3F7;border-radius:6px;padding:1px 4px}
+.mbtns{display:flex;flex-direction:column;gap:8px}.mbtns .r{display:flex;gap:8px}.mbtns .r>button{flex:1;min-height:46px;font-size:14px;padding:8px 10px}
 .hidden{display:none!important}
 </style>
 </head>
@@ -69,6 +72,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <button class="menu hidden" id="m-sale" type="button"><span class="ic">🏷️</span><span>Выставить цену<div class="d">Цена продажи наличными и в рассрочку</div></span></button>
 <button class="menu hidden" id="m-history" type="button"><span class="ic">🕘</span><span id="m-history-t">Мои расчёты<div class="d">Прошлые оценки с ценами и ссылками</div></span></button>
 <button class="menu hidden" id="m-device" type="button"><span class="ic">🔎</span><span>Проверка устройства<div class="d">IMEI и серийный номер: KZ-IMEI, RFS, Kcell, SNDeep, Apple</div></span></button>
+<button class="menu hidden" id="m-monitor" type="button"><span class="ic">📡</span><span>Мониторинг цен<div class="d">Смартфоны A/B/C, история рынка, золото, выгодные предложения</div></span></button>
 <div class="duo">
 <button class="menu hidden" id="m-settings" type="button" style="padding:14px"><span class="ic">⚙️</span><span>Настройки</span></button>
 <button class="menu" id="m-help" type="button" style="padding:14px"><span class="ic">ℹ️</span><span>Помощь</span></button>
@@ -124,6 +128,16 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="err" id="dev-err" role="alert"></div>
 </main>
 <div class="footer"><button class="btn" id="dev-go" type="button">Проверить</button></div>
+</section>
+
+<section id="monitor" class="screen" aria-labelledby="mon-title">
+<header><h1 id="mon-title">Мониторинг цен</h1></header>
+<main>
+<div class="card mon" id="mon-text" aria-live="polite"></div>
+<div class="mbtns" id="mon-btns"></div>
+<div class="strip hidden" id="mon-alert"></div>
+<div class="err" id="mon-err" role="alert"></div>
+</main>
 </section>
 
 <section id="settings" class="screen" aria-labelledby="set-title">
@@ -311,7 +325,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   var screenNow = "home";
   function show(id) {
     screenNow = id;
-    ["home", "history", "device", "settings", "help", "form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); });
+    ["home", "history", "device", "monitor", "settings", "help", "form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); });
     window.scrollTo(0, 0);
     try { if (tg && tg.BackButton) { if (id === "home") tg.BackButton.hide(); else tg.BackButton.show(); } } catch (e) {}
   }
@@ -566,9 +580,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("m-history").classList.toggle("hidden", !f.history);
     $("m-history-t").firstChild.nodeValue = f.history_all ? "История расчётов" : "Мои расчёты";
     $("m-device").classList.toggle("hidden", !f.device_check);
+    $("m-monitor").classList.toggle("hidden", !f.monitor);
     $("m-settings").classList.toggle("hidden", profile.name == null);
     var chat = [];
-    if (f.monitor) chat.push("Мониторинг цен");
     if (f.manage) chat.push("Управление PricePilot");
     $("m-chat-list").textContent = chat.join(" · ");
     $("m-chat").classList.toggle("hidden", !chat.length);
@@ -718,12 +732,52 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   });
   $("m-help").addEventListener("click", function () { show("help"); });
 
+  // ---- monitoring: the chat's own screens, rendered here ----
+  var monStack = [];
+  function loadMonitor(action, push) {
+    err($("mon-err"), ""); $("mon-alert").classList.add("hidden");
+    $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+    if (action === "monitor:opportunities") $("mon-text").textContent = "Проверяю OLX — это может занять до минуты…";
+    api("/api/monitor", { method: "POST", body: JSON.stringify({ init_data: initData, action: action }) }).then(function (data) {
+      $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = false; });
+      if (data.error) {
+        err($("mon-err"), data.error === "not_found" ? "Обновите бота: мониторинг появится после выпуска." : (ERRORS[data.error] || "Не удалось открыть раздел."));
+        return;
+      }
+      if (push) monStack.push(action);
+      // Server sends sanitized HTML: only b/i/u/s/code/pre/a(https) survive.
+      $("mon-text").innerHTML = data.html || "";
+      $("mon-text").querySelectorAll("a").forEach(function (a) {
+        a.addEventListener("click", function (e) { e.preventDefault(); openUrl(a.getAttribute("href")); });
+      });
+      if (data.alert) { $("mon-alert").textContent = data.alert; $("mon-alert").classList.remove("hidden"); }
+      var box = $("mon-btns"); box.innerHTML = "";
+      (data.buttons || []).forEach(function (row) {
+        var r = document.createElement("div"); r.className = "r";
+        row.forEach(function (b) {
+          var el = document.createElement("button"); el.type = "button"; el.className = "btn ghost"; el.textContent = b.text;
+          el.addEventListener("click", function () {
+            if (b.url) { openUrl(b.url); return; }
+            if (b.home) { goHome(); return; }
+            if (/^⬅️/.test(b.text) && monStack.length > 1) { monStack.pop(); monStack.pop(); }
+            loadMonitor(b.action, true);
+          });
+          r.appendChild(el);
+        });
+        box.appendChild(r);
+      });
+      window.scrollTo(0, 0);
+    });
+  }
+  $("m-monitor").addEventListener("click", function () { monStack = []; show("monitor"); loadMonitor("monitor:menu", true); });
+
   loadProfile();
   $("m-chat-open").addEventListener("click", function () { if (tg) tg.close(); });
   $("home-resume").addEventListener("click", function () { var j = loadJob(); if (j) openJob(j); else goHome(); });
   try {
     if (tg && tg.BackButton) tg.BackButton.onClick(function () {
       if (screenNow === "result" && histFrom === "history") { histFrom = "home"; show("history"); return; }
+      if (screenNow === "monitor" && monStack.length > 1) { monStack.pop(); loadMonitor(monStack.pop(), true); return; }
       goHome();
     });
   } catch (e) {}
