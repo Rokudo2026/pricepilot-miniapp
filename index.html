@@ -83,9 +83,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="sub" id="m-chat-list" style="font-size:14px;line-height:1.5"></div>
 <button class="btn ghost" id="m-chat-open" type="button" style="margin-top:12px;min-height:44px;font-size:15px">Открыть чат</button>
 </div>
-<button class="btn ghost hidden" id="m-homescreen" type="button" style="min-height:46px;font-size:15px">📲 Добавить PricePilot на экран телефона</button>
 <div class="err" id="home-err" role="alert"></div>
-<button class="btn ghost hidden" id="m-copyid" type="button" style="min-height:46px;font-size:15px">Скопировать мой Telegram ID</button>
 </main>
 </section>
 
@@ -272,7 +270,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="amount" id="res-buy"></div>
 <div class="note" id="res-max-box"><span id="res-max"></span></div>
 </div>
-<div class="strip warnstrip hidden" id="res-withheld" role="status">Рынок подтверждён недостаточно — сумму закупа бот не показывает. Нужна оценка эксперта.</div>
+<div class="strip warnstrip hidden" id="res-withheld" role="status">Закуп бот не показывает: подходящих объявлений слишком мало, чтобы назвать сумму уверенно. Посмотрите объявления ниже и решите сами или спросите эксперта. Цены продажи ниже — только справочно.</div>
 <div class="duo" id="res-sale-tiles">
 <div class="tile"><span class="k">Продажа наличными</span><span class="v" id="res-cash"></span></div>
 <div class="tile"><span class="k">В рассрочку</span><span class="v" id="res-inst"></span></div>
@@ -288,7 +286,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div id="res-list"></div>
 </div>
 </main>
-<div class="footer duo"><button class="btn ghost" id="res-chat" type="button">Подробно в чате</button><button class="btn" id="res-new" type="button">Новый расчёт</button></div>
+<div class="footer duo"><button class="btn ghost" id="res-chat" type="button">В меню</button><button class="btn" id="res-new" type="button">Новый расчёт</button></div>
 </section>
 
 <script>
@@ -473,20 +471,54 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     window.open(url, "_blank", "noopener");
   }
 
+  var STATUS_LABEL = { used: "в расчёте", reference: "ориентир нового", ok: "подходит", excluded: "не подошло" };
+  function listingRow(it) {
+    var row = document.createElement("a"); row.className = "basis"; row.href = it.url;
+    if (it.status === "excluded") row.style.opacity = ".6";
+    row.addEventListener("click", function (e) { e.preventDefault(); openUrl(it.url); });
+    var left = document.createElement("div");
+    var t = document.createElement("div"); t.className = "t"; t.textContent = it.title || "Объявление";
+    var s = document.createElement("div"); s.className = "s u";
+    s.textContent = [STATUS_LABEL[it.status] || (it.used ? "в расчёте" : ""), it.new ? "новый" : "", it.memory,
+      it.battery ? "АКБ " + it.battery : "", it.reason].filter(Boolean).join(" · ") + " ↗";
+    left.appendChild(t); left.appendChild(s);
+    var right = document.createElement("b"); right.style.whiteSpace = "nowrap"; right.textContent = it.price ? money(it.price) : "—";
+    row.appendChild(left); row.appendChild(right);
+    return row;
+  }
   function renderListings(items) {
+    // Grouped by source, like the chat's link screens: OLX, Telegram, Kaspi, shops.
     var box = $("res-list"); box.innerHTML = "";
     $("res-list-box").classList.toggle("hidden", !items.length);
+    var groups = {}, order = [];
     items.forEach(function (it) {
-      var row = document.createElement("a"); row.className = "basis"; row.href = it.url;
-      row.addEventListener("click", function (e) { e.preventDefault(); openUrl(it.url); });
-      var left = document.createElement("div");
-      var t = document.createElement("div"); t.className = "t"; t.textContent = it.title || "Объявление";
-      var s = document.createElement("div"); s.className = "s u";
-      s.textContent = [it.source === "Магазины" ? "Sulpak/Technodom" : it.source, it.new ? "новый" : "", it.memory, it.battery ? "АКБ " + it.battery : "", it.used ? "в расчёте" : ""]
-        .filter(Boolean).join(" · ") + " ↗";
-      left.appendChild(t); left.appendChild(s);
-      var right = document.createElement("b"); right.style.whiteSpace = "nowrap"; right.textContent = money(it.price);
-      row.appendChild(left); row.appendChild(right); box.appendChild(row);
+      var key = it.source_key || it.source;
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(it);
+    });
+    var rank = { olx: 0, telegram: 1, kaspi: 2, retail: 3 };
+    order.sort(function (a, b) { return (rank[a] == null ? 9 : rank[a]) - (rank[b] == null ? 9 : rank[b]); });
+    order.forEach(function (key) {
+      var list = groups[key];
+      var name = list[0].source === "Магазины" ? "Sulpak, Technodom" : list[0].source;
+      var head = document.createElement("div"); head.className = "label";
+      head.style.cssText = "padding:14px 16px 4px;border-top:1px solid #EEF1F5";
+      var usedCount = list.filter(function (x) { return x.status === "used"; }).length;
+      head.textContent = name + " · " + list.length + (usedCount ? " · в расчёте " + usedCount : "");
+      box.appendChild(head);
+      var main = list.filter(function (x) { return x.status !== "excluded"; });
+      var rest = list.filter(function (x) { return x.status === "excluded"; });
+      main.forEach(function (it) { box.appendChild(listingRow(it)); });
+      if (rest.length) {
+        var wrap = document.createElement("div"); wrap.className = "hidden";
+        rest.forEach(function (it) { wrap.appendChild(listingRow(it)); });
+        var more = document.createElement("button"); more.type = "button"; more.className = "hrow";
+        more.style.color = "var(--accent)"; more.style.fontWeight = "600";
+        more.textContent = "Не подошли (" + rest.length + ") — показать с причиной";
+        more.addEventListener("click", function () { wrap.classList.remove("hidden"); more.remove(); });
+        if (!main.length) wrap.classList.remove("hidden"); else box.appendChild(more);
+        box.appendChild(wrap);
+      }
     });
   }
 
@@ -515,6 +547,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("res-max").appendChild(maxText);
     $("res-max-box").classList.toggle("hidden", !maxText.textContent);
     $("res-sale-tiles").classList.toggle("hidden", saleMode);
+    // Purchase withheld: sale prices stay as a reference only.
+    $("res-sale-tiles").style.opacity = (!saleMode && p.withheld) ? ".6" : "";
     $("res-rel").textContent = r.reliability ? "Надёжность: " + r.reliability : "";
     $("res-cash").textContent = money((r.sale || {}).cash);
     $("res-inst").textContent = money((r.sale || {}).installment);
@@ -551,7 +585,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   updateModelDependent();
   // Reopened while an appraisal was still running: go straight to it.
   (function () { var j = loadJob(); if (j && !j.viewed && API) openJob(j); else { refreshResume(); goHome(); } })();
-  $("res-chat").addEventListener("click", function () { if (tg) tg.close(); });
+  $("res-chat").addEventListener("click", function () { goHome(); });
 
   // ---- home menu, history ----
   var profile = null, histScope = "mine", histOffset = 0, histFrom = "home";
@@ -574,27 +608,13 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       if (data.error) {
         // Older bot without /api/me: keep the appraisal working.
         if (data._status === 404) { profile = { features: { purchase: true } }; applyProfile(); return; }
-        if (data.error === "access_denied" || data.error === "unauthorized") { showNoAccess(); return; }
         err($("home-err"), ERRORS[data.error] || "Не удалось загрузить меню."); return;
       }
       profile = data; applyProfile();
     });
   }
-  function showNoAccess() {
-    // Strangers see nothing of PricePilot: only their Telegram ID to send to the owner.
-    var id = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? String(tg.initDataUnsafe.user.id) : "";
-    $("home-sub").textContent = "Нет доступа";
-    $("m-help").classList.add("hidden");
-    err($("home-err"), "У вас нет доступа к PricePilot." + (id ? " Отправьте владельцу ваш Telegram ID: " + id + ". Доступ откроется, когда он добавит вас." : " Обратитесь к владельцу."));
-    if (id) {
-      var b = $("m-copyid");
-      b.classList.remove("hidden");
-      b.onclick = function () { copyText(id, b); };
-    }
-  }
   function applyProfile() {
     var f = profile.features || {};
-    homeScreenOffer();
     if (profile.name) $("home-sub").textContent = "Здравствуйте, " + profile.name;
     $("m-purchase").classList.toggle("hidden", !f.purchase);
     $("m-sale").classList.toggle("hidden", !f.sale);
@@ -810,20 +830,6 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     loadMonitor(null, false, value);
   });
   $("mon-input").addEventListener("keydown", function (e) { if (e.key === "Enter") $("mon-send").click(); });
-
-  // Home-screen shortcut (Telegram 8.0+): offered only to employees with access
-  // (applyProfile), so a stranger is never invited to install it.
-  function homeScreenOffer() {
-    try {
-      if (tg && typeof tg.addToHomeScreen === "function" && typeof tg.checkHomeScreenStatus === "function") {
-        tg.checkHomeScreenStatus(function (status) {
-          $("m-homescreen").classList.toggle("hidden", status === "added" || status === "unsupported");
-        });
-      }
-    } catch (e) {}
-  }
-  $("m-homescreen").addEventListener("click", function () { try { tg.addToHomeScreen(); } catch (e) {} });
-  try { tg && tg.onEvent && tg.onEvent("homeScreenAdded", function () { $("m-homescreen").classList.add("hidden"); }); } catch (e) {}
 
   loadProfile();
   $("m-chat-open").addEventListener("click", function () { if (tg) tg.close(); });
