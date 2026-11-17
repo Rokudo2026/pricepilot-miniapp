@@ -737,6 +737,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 
   // ---- monitoring: the chat's own screens, rendered here ----
   var monStack = [], monKind = "monitor";
+  function monEntry() { return monKind === "manage" ? "admin:menu" : "monitor:menu"; }
   function loadMonitor(action, push, text) {
     err($("mon-err"), ""); $("mon-alert").classList.add("hidden");
     $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = true; });
@@ -745,6 +746,10 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     if (text != null) payload.text = text; else payload.action = action;
     api("/api/" + monKind, { method: "POST", body: JSON.stringify(payload) }).then(function (data) {
       $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = false; });
+      if (data.error === "bad_request" && text == null && action !== monEntry()) {
+        // The bot only accepts buttons from the latest screen: reopen the section.
+        loadMonitor(monEntry(), true); return;
+      }
       if (data.error) {
         err($("mon-err"), data.error === "not_found" ? "Обновите бота: раздел появится после выпуска." : (ERRORS[data.error] || "Не удалось открыть раздел."));
         return;
@@ -766,7 +771,6 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
           el.addEventListener("click", function () {
             if (b.url) { openUrl(b.url); return; }
             if (b.home) { goHome(); return; }
-            if (/^⬅️/.test(b.text) && monStack.length > 1) { monStack.pop(); monStack.pop(); }
             loadMonitor(b.action, true);
           });
           r.appendChild(el);
@@ -797,7 +801,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   try {
     if (tg && tg.BackButton) tg.BackButton.onClick(function () {
       if (screenNow === "result" && histFrom === "history") { histFrom = "home"; show("history"); return; }
-      if (screenNow === "monitor" && monStack.length > 1) { monStack.pop(); loadMonitor(monStack.pop(), true); return; }
+      // Back inside monitoring/management returns to the section start; screen
+      // buttons (⬅️) step back one level.  Actions are never replayed.
+      if (screenNow === "monitor" && monStack.length > 1) { monStack = []; loadMonitor(monEntry(), true); return; }
       goHome();
     });
   } catch (e) {}
