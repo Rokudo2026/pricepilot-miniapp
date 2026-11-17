@@ -521,7 +521,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       var seconds = Math.round((Date.now() - startedAt) / 1000);
       $("wait-time").textContent = seconds + " сек";
       if (data.progress) $("bar").style.width = Math.round(data.progress * 100) + "%";
-      renderSteps(data.live);
+      // Older bot without live stages: move through the steps by elapsed progress.
+      renderSteps(data.live || (data.progress ? { stage: STEPS[Math.min(STEPS.length - 1, Math.floor(data.progress * STEPS.length))][0] } : null));
       if (data.status === "done") { clearInterval(tipTimer); render(data.result); haptic("success"); return; }
       if (data._status === 404) { saveJob(null); err($("wait-err"), "Эта оценка уже недоступна. Начните новую."); return; }
       if (data.status === "error" || data.error) {
