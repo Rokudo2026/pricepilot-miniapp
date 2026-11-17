@@ -83,7 +83,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="sub" id="m-chat-list" style="font-size:14px;line-height:1.5"></div>
 <button class="btn ghost" id="m-chat-open" type="button" style="margin-top:12px;min-height:44px;font-size:15px">Открыть чат</button>
 </div>
+<button class="btn ghost hidden" id="m-homescreen" type="button" style="min-height:46px;font-size:15px">📲 Добавить PricePilot на экран телефона</button>
 <div class="err" id="home-err" role="alert"></div>
+<button class="btn ghost hidden" id="m-copyid" type="button" style="min-height:46px;font-size:15px">Скопировать мой Telegram ID</button>
 </main>
 </section>
 
@@ -608,13 +610,27 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       if (data.error) {
         // Older bot without /api/me: keep the appraisal working.
         if (data._status === 404) { profile = { features: { purchase: true } }; applyProfile(); return; }
+        if (data.error === "access_denied" || data.error === "unauthorized") { showNoAccess(); return; }
         err($("home-err"), ERRORS[data.error] || "Не удалось загрузить меню."); return;
       }
       profile = data; applyProfile();
     });
   }
+  function showNoAccess() {
+    // Strangers see nothing of PricePilot: only their Telegram ID to send to the owner.
+    var id = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? String(tg.initDataUnsafe.user.id) : "";
+    $("home-sub").textContent = "Нет доступа";
+    $("m-help").classList.add("hidden");
+    err($("home-err"), "У вас нет доступа к PricePilot." + (id ? " Отправьте владельцу ваш Telegram ID: " + id + ". Доступ откроется, когда он добавит вас." : " Обратитесь к владельцу."));
+    if (id) {
+      var b = $("m-copyid");
+      b.classList.remove("hidden");
+      b.onclick = function () { copyText(id, b); };
+    }
+  }
   function applyProfile() {
     var f = profile.features || {};
+    homeScreenOffer();
     if (profile.name) $("home-sub").textContent = "Здравствуйте, " + profile.name;
     $("m-purchase").classList.toggle("hidden", !f.purchase);
     $("m-sale").classList.toggle("hidden", !f.sale);
@@ -830,6 +846,20 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     loadMonitor(null, false, value);
   });
   $("mon-input").addEventListener("keydown", function (e) { if (e.key === "Enter") $("mon-send").click(); });
+
+  // Home-screen shortcut (Telegram 8.0+): offered only to employees with access
+  // (applyProfile), so a stranger is never invited to install it.
+  function homeScreenOffer() {
+    try {
+      if (tg && typeof tg.addToHomeScreen === "function" && typeof tg.checkHomeScreenStatus === "function") {
+        tg.checkHomeScreenStatus(function (status) {
+          $("m-homescreen").classList.toggle("hidden", status === "added" || status === "unsupported");
+        });
+      }
+    } catch (e) {}
+  }
+  $("m-homescreen").addEventListener("click", function () { try { tg.addToHomeScreen(); } catch (e) {} });
+  try { tg && tg.onEvent && tg.onEvent("homeScreenAdded", function () { $("m-homescreen").classList.add("hidden"); }); } catch (e) {}
 
   loadProfile();
   $("m-chat-open").addEventListener("click", function () { if (tg) tg.close(); });
