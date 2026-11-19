@@ -19,6 +19,7 @@ h1{margin:0;font:800 20px/1.2 Manrope,sans-serif}
 main{flex:1;display:flex;flex-direction:column;gap:18px;padding:16px 16px 110px}
 .label{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px;display:block}
 .seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.seg[data-group="storage"]{grid-template-columns:repeat(5,minmax(0,1fr))}
 .seg2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .opt{min-height:44px;border:1px solid var(--field);border-radius:10px;background:#fff;font:500 14px Inter,sans-serif;color:#2B3445;cursor:pointer;padding:0 8px}
 .opt[aria-pressed="true"]{border:2px solid var(--accent);background:var(--accent-soft);color:var(--accent-dark);font-weight:600}
@@ -214,6 +215,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div>
 <span class="label" id="storage-l">Память, ГБ</span>
 <div class="seg" role="group" aria-labelledby="storage-l" data-group="storage">
+<button class="opt" type="button" data-v="64">64</button>
 <button class="opt" type="button" data-v="128">128</button>
 <button class="opt" type="button" data-v="256" aria-pressed="true">256</button>
 <button class="opt" type="button" data-v="512">512</button>
@@ -349,9 +351,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     document.querySelector('[data-group="condition"] [data-v="new"]').classList.toggle("hidden", state.mode === "sale");
     $("sim-box").classList.toggle("hidden", !simRelevant(text));
     // Samsung and others do not show battery health; the slider is for Apple only.
-    $("battery-box").classList.toggle("hidden", state.mode === "sale" || state.condition === "new" || !isApple(text));
+    $("battery-box").classList.toggle("hidden", state.condition === "new" || !isApple(text));
     // Sealed new device: box is implied, defects are impossible.
-    $("kit-box").classList.toggle("hidden", state.mode === "sale" || state.condition === "new");
+    $("kit-box").classList.toggle("hidden", state.condition === "new");
     $("def-faceid").classList.toggle("hidden", !isIphone(text));
   }
 
@@ -460,8 +462,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     err($("form-err"), "");
     var item = {
       query: query, storage_gb: Number(state.storage), condition: state.condition,
-      battery: state.mode === "sale" || state.condition === "new" || !isApple(query) ? null : Number($("battery").value), box: state.condition === "new" ? true : state.box,
-      defects: state.mode === "sale" || state.condition === "new" ? [] : Object.keys(state.defects).filter(function (k) { return state.defects[k] && (k !== "face_id" || isIphone(query)); }),
+      battery: state.condition === "new" || !isApple(query) ? null : Number($("battery").value), box: state.condition === "new" ? true : state.box,
+      defects: state.condition === "new" ? [] : Object.keys(state.defects).filter(function (k) { return state.defects[k] && (k !== "face_id" || isIphone(query)); }),
       sim_variant: simRelevant(query) ? state.sim : null,
       mode: state.mode
     };
@@ -666,7 +668,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("hero").classList.toggle("hidden", !!p.withheld || (saleMode && !sale.cash));
     $("res-withheld").classList.toggle("hidden", !p.withheld);
     if (saleMode) $("res-withheld").textContent = sale.reason || "Недостаточно данных для цены продажи.";
-    else $("res-withheld").textContent = "Закуп бот не показывает: подходящих объявлений слишком мало, чтобы назвать сумму уверенно. Цены продажи ниже — только справочно.";
+    else $("res-withheld").textContent = sale.reason || "Закуп бот не показывает: подходящих объявлений слишком мало, чтобы назвать сумму уверенно. Цены продажи ниже — только справочно.";
     $("res-hero-k").textContent = saleMode ? "Цена продажи наличными" : "Рекомендуемый закуп";
     $("res-buy").textContent = money(saleMode ? sale.cash : p.recommended);
     $("res-max").innerHTML = "";
@@ -697,7 +699,8 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     if (r.history) $("res-sub").textContent = [$("res-sub").textContent, "расчёт от " + r.history.date].filter(Boolean).join(" · ");
     if (r.own_sales) line("Наши продажи", r.own_sales.count + " за 90 дней — основа цены", money(r.own_sales.min) + " – " + money(r.own_sales.max));
     if (sale.basis) {
-      if (sale.basis.label) line("Основа цены", sale.basis.label, sale.basis.count + " поз. / " + sale.basis.window_days + " дн.");
+      if (sale.basis.label) line("Основа цены", sale.basis.label, sale.basis.count + " поз.");
+      if (sale.basis.market_changed) line("Рынок изменился", "Было " + money(sale.basis.previous_cash) + ", сейчас " + money(sale.basis.market_cash), "");
       if (sale.basis.condition_note) line("Сопоставимость", sale.basis.condition_note, "");
       if (sale.basis.kaspi_ceiling) line("Kaspi — только потолок", sale.basis.kaspi_ceiling_applied ? "Ограничил итог" : "Проверен, не применялся", money(sale.basis.kaspi_ceiling));
       else line("Kaspi — только потолок", "Нет данных Kaspi; потолок не применяется", "—");
@@ -707,7 +710,26 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       if (s.ok && s.used) note += ", в расчёте " + s.used;
       line(s.source === "retail" ? "Sulpak, Technodom" : s.label, note, s.ok ? "✓" : "—");
     });
-    renderListings(r.listings || []);
+    (r.source_blocks || []).forEach(function (block) {
+      var issue = {TIMEOUT:"не ответил вовремя", UNAVAILABLE:"недоступен", PARSE_ERROR:"не удалось прочитать", ERROR:"ошибка источника",NOT_TESTED:"не проверялся"};
+      var note = issue[block.status] || (block.count ? block.count + " сопоставимых" : "не найдено");
+      if (block.status === "PARTIAL") note += " · проверка неполная";
+      if (block.used) note += " · в расчёте: " + block.used;
+      if (block.reason) note += " · " + block.reason;
+      if (block.source === "olx_private" && block.count) note += " · мин. " + money(block.min) + ", медиана " + money(block.median);
+      line(block.label, note, "");
+      (block.rows || []).forEach(function (item) {
+        var date = (item.date || "").slice(0, 10);
+        var value = block.source === "kaspi" ? "Астана: " + money(item.branch_price) + " · общий: " + money(item.national_price) : money(item.price);
+        var url = item.url && /^https:\/\//i.test(item.url) ? item.url : "";
+        if (url) {
+          var row = document.createElement("a"); row.className = "basis"; row.href = url; row.target = "_blank"; row.rel = "noopener noreferrer";
+          row.textContent = [item.seller || item.title, value, date].filter(Boolean).join(" · ");
+          basis.appendChild(row);
+        } else line(item.seller || item.title || block.label, date, value);
+      });
+    });
+    renderListings((r.source_blocks || []).length ? [] : (r.listings || []));
     var j = loadJob(); if (j) { j.viewed = true; saveJob(j); }
     show("result");
   }
