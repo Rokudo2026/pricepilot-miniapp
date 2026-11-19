@@ -227,7 +227,14 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <button class="opt" type="button" data-v="esim_only">Только eSIM</button>
 </div>
 </div>
-<div>
+<div id="sale-kind" class="hidden">
+<span class="label">Товар</span>
+<div class="seg seg2" data-group="sale_kind">
+<button class="opt" type="button" data-v="new">Новое</button>
+<button class="opt" type="button" data-v="used" aria-pressed="true">Б/у</button>
+</div>
+</div>
+<div id="condition-box">
 <span class="label" id="cond-l">Состояние</span>
 <div class="seg seg2" role="group" aria-labelledby="cond-l" data-group="condition">
 <button class="opt" type="button" data-v="new">Новый, запечатан</button>
@@ -337,6 +344,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   }
   function updateModelDependent() {
     var text = $("model").value;
+    $("sale-kind").classList.toggle("hidden", state.mode !== "sale");
+    $("condition-box").classList.toggle("hidden", state.mode === "sale" && state.condition === "new");
+    document.querySelector('[data-group="condition"] [data-v="new"]').classList.toggle("hidden", state.mode === "sale");
     $("sim-box").classList.toggle("hidden", !simRelevant(text));
     // Samsung and others do not show battery health; the slider is for Apple only.
     $("battery-box").classList.toggle("hidden", state.mode === "sale" || state.condition === "new" || !isApple(text));
@@ -368,6 +378,12 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       var button = event.target.closest(".opt"); if (!button) return;
       group.querySelectorAll(".opt").forEach(function (b) { b.setAttribute("aria-pressed", String(b === button)); });
       state[group.dataset.group] = button.dataset.v;
+      if (group.dataset.group === "sale_kind") {
+        state.condition = button.dataset.v === "new" ? "new" : "good";
+        document.querySelectorAll('[data-group="condition"] .opt').forEach(function (b) {
+          b.setAttribute("aria-pressed", String(b.dataset.v === state.condition));
+        });
+      }
       updateModelDependent();
     });
   });
@@ -646,9 +662,11 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     var p = r.purchase || {};
     var sale = r.sale || {};
     var saleMode = r.mode === "sale";
-    if (saleMode) p = { withheld: false };
+    if (saleMode) p = { withheld: !sale.cash };
     $("hero").classList.toggle("hidden", !!p.withheld || (saleMode && !sale.cash));
     $("res-withheld").classList.toggle("hidden", !p.withheld);
+    if (saleMode) $("res-withheld").textContent = sale.reason || "Недостаточно данных для цены продажи.";
+    else $("res-withheld").textContent = "Закуп бот не показывает: подходящих объявлений слишком мало, чтобы назвать сумму уверенно. Цены продажи ниже — только справочно.";
     $("res-hero-k").textContent = saleMode ? "Цена продажи наличными" : "Рекомендуемый закуп";
     $("res-buy").textContent = money(saleMode ? sale.cash : p.recommended);
     $("res-max").innerHTML = "";
@@ -678,6 +696,12 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     }
     if (r.history) $("res-sub").textContent = [$("res-sub").textContent, "расчёт от " + r.history.date].filter(Boolean).join(" · ");
     if (r.own_sales) line("Наши продажи", r.own_sales.count + " за 90 дней — основа цены", money(r.own_sales.min) + " – " + money(r.own_sales.max));
+    if (sale.basis) {
+      if (sale.basis.label) line("Основа цены", sale.basis.label, sale.basis.count + " поз. / " + sale.basis.window_days + " дн.");
+      if (sale.basis.condition_note) line("Сопоставимость", sale.basis.condition_note, "");
+      if (sale.basis.kaspi_ceiling) line("Kaspi — только потолок", sale.basis.kaspi_ceiling_applied ? "Ограничил итог" : "Проверен, не применялся", money(sale.basis.kaspi_ceiling));
+      else line("Kaspi — только потолок", "Нет данных Kaspi; потолок не применяется", "—");
+    }
     (r.sources || []).forEach(function (s) {
       var note = s.ok ? (s.found != null ? "найдено " + s.found : "есть данные") : (s.note || "недоступен");
       if (s.ok && s.used) note += ", в расчёте " + s.used;
@@ -702,6 +726,9 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   var profile = null, histScope = "mine", histOffset = 0, histFrom = "home";
   function openForm(mode) {
     state.mode = mode;
+    document.querySelectorAll('[data-group="sale_kind"] .opt').forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.v === (state.condition === "new" ? "new" : "used")));
+    });
     $("form-title").textContent = mode === "sale" ? "Выставить цену" : "Оценить закуп";
     $("go").textContent = mode === "sale" ? "Рассчитать цену" : "Оценить";
     updateModelDependent(); refreshResume(); err($("form-err"), ""); show("form");
