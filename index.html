@@ -409,6 +409,7 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
 <div class="bar"><div id="bar"></div></div>
 </div>
 <div class="card steps" id="wait-steps" aria-live="polite"></div>
+<div class="card steps hidden" id="wait-sources" aria-live="polite"></div>
 <div class="card" style="padding:14px 16px">
 <div class="label" style="margin-bottom:6px">Пока считаю</div>
 <div class="tip" id="wait-tip"></div>
@@ -430,6 +431,7 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
 <div class="card" style="padding:12px">
 <div class="big" id="res-model"></div><div class="sub" id="res-sub"></div><div class="sub hidden" id="res-rel"></div>
 </div>
+<div class="strip warnstrip hidden" id="res-market-warning" role="status">Часть рынка не ответила. Надёжность низкая: проверьте рынок вручную, прежде чем принимать решение о закупе.</div>
 <div class="result-metrics" id="hero">
 <div class="result-price purchase" id="res-buy-box"><span class="metric-k"><span data-icon="lock"></span>Рекомендуемый закуп</span><strong id="res-buy"></strong></div>
 <div class="result-price maximum" id="res-max-box"><span class="metric-k"><span data-icon="tag"></span>Максимум закупа</span><strong id="res-max"></strong><small>Не превышать</small></div>
@@ -738,7 +740,27 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     "Ярлык на экран телефона: кнопка «📲 Добавить» в меню."
   ];
   var tipIndex = 0, tipTimer = null, lastStage = null;
+  var WAIT_SOURCES = {kaspi:"Kaspi", olx:"OLX", telegram:"Telegram", own_sales:"Наши продажи", owner_price_history:"История цен"};
+  function renderSourceProgress(live) {
+    var box = $("wait-sources"), sources = live && live.sources;
+    box.replaceChildren();
+    box.classList.toggle("hidden", !sources || !Object.keys(sources).length);
+    if (!sources) return;
+    Object.keys(WAIT_SOURCES).forEach(function (key) {
+      if (!sources[key]) return;
+      var state = sources[key], row = document.createElement("div");
+      row.className = "step";
+      var name = document.createElement("b"), note = document.createElement("span");
+      name.textContent = WAIT_SOURCES[key];
+      note.textContent = state.status === "LOADING" ? "Собираю данные…" :
+        state.count && state.status === "PARTIAL" ? "Найдено: " + state.count + " · частичный ответ" :
+        sourceProblem(state) || (state.count ? "Найдено: " + state.count : "Не найдено");
+      row.append(name, note);
+      box.appendChild(row);
+    });
+  }
   function renderSteps(live) {
+    renderSourceProgress(live);
     var box = $("wait-steps");
     var current = live && live.stage ? live.stage : "validating";
     var idx = STEPS.findIndex(function (st) { return st[0] === current; });
@@ -776,6 +798,11 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     api("/api/appraisals/" + encodeURIComponent(jobId)).then(function (data) {
       var seconds = Math.round((Date.now() - startedAt) / 1000);
       $("wait-time").textContent = seconds + " сек";
+      if (data.error === "network" || data.error === "timeout") {
+        $("wait-now").textContent = "Восстанавливаю связь…";
+        pollTimer = setTimeout(function () { poll(jobId); }, 2000);
+        return;
+      }
       if (data.progress) $("bar").style.width = Math.round(data.progress * 100) + "%";
       // Older bot without live stages: move through the steps by elapsed progress.
       renderSteps(data.live || (data.progress ? { stage: STEPS[Math.min(STEPS.length - 1, Math.floor(data.progress * STEPS.length))][0] } : null));
@@ -860,6 +887,10 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
   var sourceIssue = { TIMEOUT:"не ответил вовремя", UNAVAILABLE:"источник недоступен",
     PARSE_ERROR:"не удалось прочитать", ERROR:"ошибка источника", NOT_TESTED:"не проверялся",
     PARTIAL:"проверка неполная" };
+  function sourceProblem(block) {
+    if (block.reason === "national_coverage_incomplete") return "не подтверждён минимум по всем городам";
+    return sourceIssue[block.status] || "";
+  }
   function safeSourceUrl(url) {
     try {
       var parsed = new URL(url);
@@ -900,9 +931,10 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     details.className = "source-card"; title.className = "src-title"; content.className = "source-content";
     var empty = !block.count && !rows.length;
     title.textContent = label;
-    note.textContent = [empty ? "Не найдено" : (block.count ? "Позиций: " + block.count : ""),
+    var issue = sourceProblem(block);
+    note.textContent = [empty && !issue ? "Не найдено" : (block.count ? "Позиций: " + block.count : ""),
       ceiling && ceiling.kaspi_ceiling ? (ceiling.kaspi_ceiling_applied ? "Ограничил итог" : "Проверен, не применялся") : "",
-      block.used ? "в расчёте: " + block.used : "", sourceIssue[block.status]].filter(Boolean).join(" · ");
+      block.used ? "в расчёте: " + block.used : "", issue].filter(Boolean).join(" · ");
     if (note.textContent) title.appendChild(note);
     summary.appendChild(glyph(icon)); summary.appendChild(title);
     var center = ceiling && ceiling.kaspi_ceiling ||
@@ -914,7 +946,7 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     rows.forEach(function (row) { content.appendChild(sourceRow(row, block.source)); });
     if (!rows.length) {
       var msg = document.createElement("p"); msg.className = "empty-source";
-      msg.textContent = empty ? "Не найдено" : [block.min ? "Минимум: " + money(block.min) : "",
+      msg.textContent = empty ? (issue || "Не найдено") : [block.min ? "Минимум: " + money(block.min) : "",
         block.median ? "Медиана: " + money(block.median) : ""].filter(Boolean).join(" · ");
       if (msg.textContent) content.appendChild(msg);
     }
@@ -944,6 +976,11 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     $("res-title").textContent = saleMode ? "Выставить цену" : "Результат оценки";
     var showRecommended = !saleMode && !p.withheld && !!p.recommended;
     var showMaximum = !saleMode && !p.withheld && !!p.maximum;
+    var marketWarning = $("res-market-warning");
+    marketWarning.classList.toggle("hidden", saleMode || !r.market_warning);
+    marketWarning.textContent = r.market_warning_reason === "insufficient_sellers"
+      ? "Независимых предложений слишком мало. Надёжность низкая: проверьте рынок вручную перед закупом."
+      : "Часть рынка не ответила. Надёжность низкая: проверьте рынок вручную, прежде чем принимать решение о закупе.";
     $("hero").classList.toggle("hidden", !showRecommended && !showMaximum);
     $("res-buy-box").classList.toggle("hidden", !showRecommended);
     $("res-max-box").classList.toggle("hidden", !showMaximum);
@@ -981,13 +1018,14 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     if (r.history && r.history.date) $("res-sub").textContent = [$("res-sub").textContent, "расчёт от " + r.history.date].filter(Boolean).join(" · ");
     if (r.own_sales) line("Наши продажи", r.own_sales.count + " за 90 дней — основа цены", money(r.own_sales.min) + " – " + money(r.own_sales.max));
     var blocks = r.source_blocks || [];
+    var hasKaspiBlock = blocks.some(function (block) { return block.source === "kaspi"; });
     if (sale.basis) {
       if (sale.basis.label) line("Основа цены", sale.basis.label, sale.basis.count + " поз.");
       if (sale.basis.condition_note) line("Сопоставимость", sale.basis.condition_note, "");
-      if (sale.basis.kaspi_ceiling && !(saleMode && blocks.length)) line("Kaspi — только потолок", sale.basis.kaspi_ceiling_applied ? "Ограничил итог" : "Проверен, не применялся", money(sale.basis.kaspi_ceiling));
+      if (sale.basis.kaspi_ceiling && !hasKaspiBlock) line("Kaspi — только потолок", sale.basis.kaspi_ceiling_applied ? "Ограничил итог" : "Проверен, не применялся", money(sale.basis.kaspi_ceiling));
     }
     (r.sources || []).forEach(function (s) {
-      if (saleMode && s.source === "kaspi" && (blocks.length || (sale.basis || {}).kaspi_ceiling)) return;
+      if (s.source === "kaspi" && (hasKaspiBlock || (sale.basis || {}).kaspi_ceiling)) return;
       var note = s.ok ? (s.found != null ? "найдено " + s.found : "есть данные") : (s.note || "недоступен");
       if (s.ok && s.used) note += ", в расчёте " + s.used;
       line(s.source === "retail" ? "Sulpak, Technodom" : s.label, note, s.ok ? "✓" : "—");
@@ -995,7 +1033,7 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     if (blocks.length) {
       var bySource = new Map(blocks.map(function (block) { return [block.source,block]; }));
       sourceCards.forEach(function (card) {
-        var capCard = saleMode && card[0] === "kaspi";
+        var capCard = card[0] === "kaspi";
         renderSourceCard(basis,capCard ? "Kaspi — только потолок" : card[1],card[2],
           bySource.get(card[0]),capCard ? sale.basis : null);
         bySource.delete(card[0]);
