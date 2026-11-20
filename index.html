@@ -1090,48 +1090,32 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     $("hist-tabs").classList.toggle("hidden", !f.history_all);
     $("hist-title").textContent = f.history_all ? "История расчётов" : "Мои расчёты";
   }
-  var historyRequest = 0, historyBusy = false, histNext = null, historySearchTimer = null;
-  function searchable(value) {
-    return (value || "").normalize("NFKC").toLocaleLowerCase("ru").replace(/ё/g,"е").trim();
-  }
-  function filterHistory() {
-    var query = searchable($("hist-search").value), matches = 0;
-    $("hist-list").querySelectorAll(".history-card").forEach(function (row) {
-      var matched = query.split(/\s+/).every(function (word) { return row.dataset.model.includes(word); });
-      row.classList.toggle("hidden", !matched);
-      if (matched) matches++;
-    });
-    $("hist-list-wrap").classList.toggle("hidden", !matches);
-    $("hist-empty").classList.toggle("hidden", !!matches || historyBusy || histNext !== null);
-    $("hist-empty").textContent = query ? "По этой модели расчётов нет" : "Расчётов пока нет";
-    $("hist-more").classList.toggle("hidden", historyBusy || histNext === null);
-    return matches;
-  }
-  function searchNextPage() {
-    if (!filterHistory() && searchable($("hist-search").value) && !historyBusy && histNext !== null && screenNow === "history") loadHistory(false);
-  }
+  var historyRequest = 0, histNext = null, historySearchTimer = null;
   function loadHistory(reset) {
+    clearTimeout(historySearchTimer);
     var request = ++historyRequest;
-    if (reset) { histOffset = 0; histNext = null; $("hist-list").replaceChildren(); }
+    var query = $("hist-search").value.trim();
+    if (reset) {
+      histOffset = 0; histNext = null;
+      $("hist-list").replaceChildren();
+      $("hist-list-wrap").classList.add("hidden");
+    }
     else if (histNext !== null) histOffset = histNext;
-    historyBusy = true;
-    filterHistory();
     err($("hist-err"), "");
     loadState("hist", true, false); $("hist-empty").classList.add("hidden");
     $("hist-more").classList.add("hidden");
-    api("/api/history?scope=" + histScope + "&offset=" + histOffset).then(function (data) {
+    api("/api/history?scope=" + histScope + "&offset=" + histOffset +
+      (query ? "&q=" + encodeURIComponent(query) : "")).then(function (data) {
       if (request !== historyRequest) return;
-      historyBusy = false;
       loadState("hist", false, !!data.error);
       if (data.error) { err($("hist-err"), failure(data)); return; }
       var list = $("hist-list");
       (data.items || []).forEach(function (it) {
         var row = document.createElement("button"); row.type = "button"; row.className = "hrow history-card";
-        row.dataset.model = searchable(it.title);
         var left = document.createElement("div"); left.className = "history-head";
         var t = document.createElement("div"); t.className = "t"; t.textContent = it.title || "Без названия";
         var s = document.createElement("div"); s.className = "s";
-        s.textContent = [it.date,it.author].filter(Boolean).join(" · ");
+        s.textContent = [it.condition,it.date,it.author].filter(Boolean).join(" · ");
         left.appendChild(t);
         if (it.mode === "sale" || it.mode === "purchase") {
           var tag = document.createElement("span"); tag.className = "tag " + it.mode;
@@ -1147,7 +1131,10 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
         list.appendChild(row);
       });
       histNext = typeof data.next_offset === "number" && data.next_offset > histOffset ? data.next_offset : null;
-      searchNextPage();
+      $("hist-list-wrap").classList.toggle("hidden", !list.children.length);
+      $("hist-empty").classList.toggle("hidden", !!list.children.length);
+      $("hist-empty").textContent = query ? "По этой модели расчётов нет" : "Расчётов пока нет";
+      $("hist-more").classList.toggle("hidden", histNext === null);
     });
   }
   function openHistoryItem(id) {
@@ -1171,9 +1158,9 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
   });
   $("hist-more").addEventListener("click", function () { loadHistory(false); });
   $("hist-search").addEventListener("input", function () {
-    filterHistory();
+    ++historyRequest;
     clearTimeout(historySearchTimer);
-    historySearchTimer = setTimeout(searchNextPage,300);
+    historySearchTimer = setTimeout(function () { if (screenNow === "history") loadHistory(true); }, 300);
   });
   $("hist-retry").addEventListener("click", function () { loadHistory(true); });
   $("home-retry").addEventListener("click", loadProfile);
