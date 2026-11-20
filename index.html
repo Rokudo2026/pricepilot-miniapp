@@ -6,8 +6,6 @@
 <title>PricePilot — оценка</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="config.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
 <style>
 :root{--accent:#1F4FD8;--accent-dark:#173DA8;--accent-soft:#EAF0FF;--ink:#141A26;--muted:#4A5468;--line:#E1E6EE;--field:#C9D2E0;--bg:#F4F6F9;--ok:#1C7C46;--ok-soft:#E3F4EA;--warn:#8A5A00;--warn-soft:#FFF4DB}
 *{box-sizing:border-box}
@@ -70,22 +68,156 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 @keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}.pop{animation:pop .35s ease}
 .hidden{display:none!important}
 </style>
+<style id="stitch-theme">
+:root{
+  --accent:#0051d5;--accent-dark:#003ea8;--accent-soft:#e5eeff;--ink:#0b1c30;--muted:#4c5b57;
+  --line:#e2e8f1;--field:#c5d1e1;--bg:#f5f7fd;--panel:#fff;--raised:#edf2ff;--selected:#213145;
+  --ok:#006948;--ok-soft:#e1f4eb;--warn:#82400b;--warn-soft:#fff1c4;--error:#9f2122;--error-soft:#fce9e8;
+  --green-card:#006948;--blue-card:#245fdd;--white:#fff;--dock:64px;--rail:680px;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --accent:#9abaff;--accent-dark:#c1d4ff;--accent-soft:#263854;--ink:#ecf2f7;--muted:#b2c1c5;
+  --line:#35434f;--field:#536575;--bg:#131a20;--panel:#1d2730;--raised:#283646;--selected:#344f73;
+  --ok:#8de6bc;--ok-soft:#173c32;--warn:#ffd797;--warn-soft:#4c321c;--error:#ffb9b6;--error-soft:#4c292d;
+  --green-card:#116449;--blue-card:#2859b5;
+  color-scheme:dark;
+}
+html,body{font-family:system-ui,sans-serif;font-variant-numeric:tabular-nums}
+body *{font-family:inherit!important;letter-spacing:0!important}
+button,input{font:inherit}
+button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.screen{min-height:100dvh}
+.screen>header{width:100%;min-height:64px;gap:4px;padding:9px max(12px,calc((100% - var(--rail))/2 + 12px));background:var(--bg);align-items:flex-start;flex-direction:column}
+.screen>header h1{font-size:20px;line-height:1.23;font-weight:750;overflow-wrap:anywhere}
+.screen>header .brand{padding:0;min-height:18px;color:var(--ok);background:none;border:0;text-transform:uppercase;font-size:11px;font-weight:800;cursor:pointer;text-align:left}
+.screen>header .sub{margin-top:4px}
+.screen>main{width:100%;max-width:var(--rail);margin-inline:auto;padding:14px 12px calc(var(--dock) + 18px + env(safe-area-inset-bottom));gap:12px}
+:is(#form,#wait,#device)>main{padding-bottom:calc(var(--dock) + 90px + env(safe-area-inset-bottom))}
+.sub,.label,.basis .s,.hrow .s,.tile .k,.menu .d,.tip{color:var(--muted)}
+.label{font-size:12px;font-weight:750}
+.card,.tile,.menu,.input,.opt,.btn,.strip,.err{border-radius:8px}
+.card,.tile,.menu,.opt,.input,.btn.ghost,.footer{background:var(--panel);border-color:var(--line);color:var(--ink)}
+.input{gap:9px;min-height:50px}
+.input input{min-width:0}
+.input input::placeholder{color:var(--muted)}
+.btn{background:var(--blue-card);color:var(--white);font-size:15px;border:1px solid transparent}
+.btn.ghost{border-color:var(--field);color:var(--accent)}
+#go{background:var(--green-card)}
+.footer{left:max(0px,calc((100% - var(--rail))/2));right:max(0px,calc((100% - var(--rail))/2));bottom:calc(var(--dock) + env(safe-area-inset-bottom));padding:8px 12px;z-index:3}
+body:not(.has-dock) .footer{bottom:env(safe-area-inset-bottom)}
+#result>main{padding-bottom:12px}
+#result>.footer{position:static;width:100%;max-width:var(--rail);margin:0 auto;padding-bottom:calc(var(--dock) + 12px + env(safe-area-inset-bottom))}
+.err{background:var(--error-soft);color:var(--error)}
+.okstrip{background:var(--ok-soft);color:var(--ok)}
+.warnstrip{background:var(--warn-soft);color:var(--warn)}
+#dock{position:fixed;z-index:5;bottom:0;left:0;right:0;display:flex;justify-content:center;background:var(--bg);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+#dock-inner{width:100%;max-width:var(--rail);display:flex;min-height:var(--dock)}
+#dock button{flex:1;min-width:0;border:0;background:none;color:var(--muted);display:grid;place-content:center;justify-items:center;gap:4px;font-size:11px;font-weight:750;cursor:pointer;padding:5px 2px}
+#dock button[aria-current="page"]{color:var(--ok);box-shadow:inset 0 2px var(--ok)}
+.glyph{width:22px;height:22px;display:inline-block;vertical-align:middle;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.menu{min-height:60px;padding:12px;gap:10px;font-size:16px;font-weight:750}
+.menu>span:last-child{min-width:0;overflow-wrap:anywhere}
+.menu .ic{width:36px;height:36px;border-radius:8px;color:var(--accent);background:var(--accent-soft)}
+.menu.primary{min-height:108px;justify-content:space-between;background:var(--green-card);color:var(--white);border:0;font-size:24px}
+.menu.primary .ic{order:2;width:51px;height:51px;color:inherit}
+.menu.primary .d{color:#ccf3e6;font-size:14px}
+.home-pair,.home-tools{display:flex;gap:8px}
+.home-pair .menu{flex:1;min-width:0;min-height:108px;align-items:flex-start;flex-direction:column}
+.home-tools{flex-wrap:wrap}
+.home-tools>.menu{flex:1 1 145px}
+.home-ops{display:grid;gap:1px;border-radius:8px;overflow:hidden;background:var(--line);border:1px solid var(--line)}
+.home-ops .menu{border:0;border-radius:0}
+.home-ops .menu .ic{color:var(--ok);background:var(--ok-soft)}
+.home-ops .menu:after{content:"›";margin-left:auto;color:var(--muted);font-size:21px}
+#form .opt{min-height:48px}
+#form .opt[aria-pressed="true"],#dev-brand .opt[aria-pressed="true"]{background:var(--selected);border-color:transparent;color:var(--white)}
+.seg{gap:4px}
+.seg[data-group="storage"] .opt{padding:0 3px}
+#form [data-group="condition"]{grid-template-columns:1fr}
+#form [data-group="condition"] .opt{display:flex;align-items:center;gap:10px;text-align:left;padding:8px 12px}
+#form [data-group="condition"] .opt[aria-pressed="true"]{color:var(--ok);background:var(--panel);box-shadow:inset 4px 0 var(--ok);border-color:var(--line)}
+#form [data-group="condition"] .opt .glyph{padding:6px;width:34px;height:34px;border-radius:6px;background:var(--accent-soft);color:var(--ink)}
+#form [data-group="condition"] .opt[aria-pressed="true"] .glyph{background:var(--green-card);color:var(--white)}
+#battery-box{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+#battery-v{color:var(--ok);font-size:17px}
+.chips .opt{padding-inline:10px;min-height:44px}
+#hist-tabs{gap:4px;background:var(--accent-soft);padding:4px;border-radius:8px}
+#hist-tabs .opt{border:0;color:var(--muted);background:transparent;padding-inline:4px}
+#hist-tabs .opt[aria-pressed="true"]{background:var(--panel);color:var(--ink)}
+#hist-list{display:grid;gap:8px}
+#hist-list-wrap{border:0;background:transparent}
+.hrow.history-card{display:grid;grid-template-columns:minmax(0,1fr);justify-content:stretch;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.history-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.history-head .t{min-width:0;overflow-wrap:anywhere}
+.tag{padding:3px 6px;border-radius:4px;background:var(--accent-soft);color:var(--accent-dark);font-size:10px;font-weight:750;flex:none}
+.tag.purchase{background:var(--ok-soft);color:var(--ok)}
+.history-summary{background:var(--raised);padding:8px;border-radius:6px;text-align:left;font-weight:700;overflow-wrap:anywhere}
+.view-state{padding:18px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;text-align:center}
+.mon{padding:14px 12px;overflow-wrap:anywhere}
+#mon-text.view-records{padding:0}
+.mon code,.mon pre{background:var(--raised);color:var(--ink);white-space:pre-wrap}
+.mbtns .r>button{min-width:0;overflow-wrap:anywhere}
+.view-records{display:grid;gap:8px}
+.view-record{padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.view-record:first-child{background:var(--accent-soft)}
+.view-record .record-action{margin-top:8px;justify-content:flex-end;min-height:44px;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;padding-right:0}
+.view-record.empty-record{text-align:center;display:grid;justify-items:center;gap:8px;padding:22px}
+.empty-record>.glyph{box-sizing:content-box;padding:8px;border-radius:8px;background:var(--accent-soft);color:var(--muted)}
+body[data-view="manage"] .mbtns .btn[data-access-grant]{background:var(--blue-card);color:var(--white)}
+body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-soft);color:var(--error)}
+.steps .step:not(.on):not(.ok){color:var(--muted)}
+.result-metrics{display:grid;gap:8px}
+.result-price{display:grid;gap:4px;padding:12px 14px;border-radius:8px;overflow-wrap:anywhere}
+.result-price.purchase{color:var(--white);background:var(--green-card)}
+.result-price.maximum{color:var(--white);background:var(--blue-card)}
+.result-price .metric-k{font-size:13px;font-weight:750;display:flex;align-items:center;gap:6px}
+.result-price strong{font-size:30px;font-weight:800;line-height:1.1}
+.result-price small{font-size:12px;color:#edf3ff}
+#res-sale-tiles{padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+#res-sale-tiles .tile{padding:9px;background:var(--raised);border:0;min-width:0}
+#res-sale-tiles .tile .v{font-size:19px;overflow-wrap:anywhere}
+#result[data-mode="sale"] #res-sale-tiles{grid-template-columns:1fr;padding:0;border:0;background:none}
+#result[data-mode="sale"] #res-sale-tiles .tile{padding:12px;background:var(--panel);border:1px solid var(--line)}
+#result[data-mode="sale"] #res-sale-tiles .tile .v{font-size:27px}
+#result[data-mode="sale"] #res-cash{color:var(--ok)}
+.basis{border-color:var(--line);padding:9px 10px;min-width:0;overflow-wrap:anywhere}
+.basis>div{min-width:0}
+#res-basis{display:grid;gap:8px}
+.source-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.source-card summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:54px;padding:9px 10px;cursor:pointer}
+.source-card summary::-webkit-details-marker{display:none}
+.source-card summary:after{content:"";width:7px;height:7px;flex:none;margin-left:auto;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg)}
+.source-card[open] summary:after{transform:rotate(225deg)}
+.source-card .src-title{min-width:0;flex:1;overflow-wrap:anywhere;font-size:14px}
+.source-card .src-title small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.source-card .src-value{font-size:14px;font-weight:750;white-space:nowrap}
+.source-card .glyph{width:26px;height:26px;padding:5px;background:var(--accent-soft);color:var(--accent);border-radius:5px}
+.source-content{background:var(--raised);border-top:1px solid var(--line)}
+.source-content .empty-source{margin:0;padding:11px;color:var(--muted);font-size:13px}
+.strip{gap:8px;overflow-wrap:anywhere}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
 </head>
 <body>
 
 <section id="home" class="screen on" aria-labelledby="home-title">
-<header><div><h1 id="home-title">PricePilot</h1><div class="sub" id="home-sub">Оценка техники по рынку</div></div></header>
+<header><div><h1 id="home-title">Price Pilot</h1><div class="sub" id="home-sub">Главная</div></div></header>
 <main>
 <button class="strip okstrip hidden" id="home-resume" type="button" style="border:0;width:100%;cursor:pointer;text-align:left"><span id="home-resume-t"></span><b>Открыть</b></button>
-<button class="menu primary hidden" id="m-purchase" type="button"><span class="ic">💰</span><span>Оценить закуп<div class="d">Сколько дать клиенту — на время или на продажу</div></span></button>
-<button class="menu hidden" id="m-sale" type="button"><span class="ic">🏷️</span><span>Выставить цену<div class="d">Цена продажи наличными и в рассрочку</div></span></button>
-<button class="menu hidden" id="m-history" type="button"><span class="ic">🕘</span><span id="m-history-t">Мои расчёты<div class="d">Прошлые оценки с ценами и ссылками</div></span></button>
-<button class="menu hidden" id="m-device" type="button"><span class="ic">🔎</span><span>Проверка устройства<div class="d">IMEI и серийный номер: KZ-IMEI, RFS, Kcell, SNDeep, Apple</div></span></button>
-<button class="menu hidden" id="m-monitor" type="button"><span class="ic">📡</span><span>Мониторинг цен<div class="d">Смартфоны A/B/C, история рынка, золото, выгодные предложения</div></span></button>
-<button class="menu hidden" id="m-manage" type="button"><span class="ic">🛠</span><span>Управление PricePilot<div class="d">Сотрудники и права, источники, настройки расчёта, состояние</div></span></button>
-<div class="duo">
-<button class="menu hidden" id="m-settings" type="button" style="padding:14px"><span class="ic">⚙️</span><span>Настройки</span></button>
-<button class="menu" id="m-help" type="button" style="padding:14px"><span class="ic">ℹ️</span><span>Помощь</span></button>
+<button class="menu primary hidden" id="m-purchase" type="button"><span class="ic" data-icon="calculator"></span><span>Оценка закупа<div class="d">Приём и выкуп техники</div></span></button>
+<div class="home-pair hidden" id="home-pair">
+<button class="menu hidden" id="m-sale" type="button"><span class="ic" data-icon="tag"></span><span>Выставить цену<div class="d">Наличные и рассрочка</div></span></button>
+<button class="menu hidden" id="m-history" type="button"><span class="ic" data-icon="history"></span><span id="m-history-t">Мои расчёты</span></button>
+</div>
+<div class="home-ops hidden" id="home-ops">
+<button class="menu hidden" id="m-monitor" type="button"><span class="ic" data-icon="trend"></span><span>Мониторинг цен<div class="d">Цены и история рынка</div></span></button>
+<button class="menu hidden" id="m-manage" type="button"><span class="ic" data-icon="shield"></span><span>Управление Price Pilot<div class="d">Сотрудники и доступ</div></span></button>
+</div>
+<div class="home-tools">
+<button class="menu hidden" id="m-device" type="button"><span class="ic" data-icon="search"></span><span>Проверка устройства</span></button>
+<button class="menu hidden" id="m-settings" type="button"><span class="ic" data-icon="sliders"></span><span>Настройки</span></button>
+<button class="menu" id="m-help" type="button"><span class="ic" data-icon="help"></span><span>Помощь</span></button>
 </div>
 <div class="card hidden" id="m-chat" style="padding:14px 16px">
 <div class="label" style="margin-bottom:6px">Пока в чате с ботом</div>
@@ -102,15 +234,16 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <section id="history" class="screen" aria-labelledby="hist-title">
 <header><h1 id="hist-title">Мои расчёты</h1></header>
 <main>
+<label class="input"><span data-icon="search"></span><input id="hist-search" type="search" autocomplete="off" aria-label="Поиск по модели" placeholder="Поиск по модели"></label>
 <div class="tabs hidden" id="hist-tabs" role="group">
 <button class="opt" type="button" data-scope="mine" aria-pressed="true">Мои</button>
 <button class="opt" type="button" data-scope="all" aria-pressed="false">Все сотрудники</button>
 </div>
-<div class="card" style="padding:0"><div id="hist-list"></div></div>
-<div class="sub hidden" id="hist-empty" style="text-align:center;padding:24px 0">Расчётов пока нет</div>
+<div class="card hidden" id="hist-list-wrap"><div id="hist-list"></div></div>
+<div class="sub view-state hidden" id="hist-empty" role="status">Расчётов пока нет</div>
 <button class="btn ghost hidden" id="hist-more" type="button">Показать ещё</button>
 <div class="err" id="hist-err" role="alert"></div>
-<div class="sub hidden" id="hist-state" role="status">Загрузка…</div>
+<div class="sub view-state hidden" id="hist-state" role="status">Загрузка…</div>
 <button class="btn ghost hidden" id="hist-retry" type="button">Повторить</button>
 </main>
 </section>
@@ -148,7 +281,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <section id="monitor" class="screen" aria-labelledby="mon-title">
 <header><h1 id="mon-title">Мониторинг цен</h1></header>
 <main>
-<div class="card mon" id="mon-text" aria-live="polite"></div>
+<div class="card mon hidden" id="mon-text" aria-live="polite"></div>
 <div class="hidden" id="mon-input-box">
 <div class="input"><input id="mon-input" autocomplete="off" placeholder="Ответ на вопрос выше"></div>
 <button class="btn" id="mon-send" type="button" style="margin-top:10px">Отправить</button>
@@ -156,7 +289,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="mbtns" id="mon-btns"></div>
 <div class="strip hidden" id="mon-alert"></div>
 <div class="err" id="mon-err" role="alert"></div>
-<div class="sub hidden" id="mon-state" role="status">Загрузка…</div>
+<div class="sub view-state hidden" id="mon-state" role="status">Загрузка…</div>
 <button class="btn ghost hidden" id="mon-retry" type="button">Повторить</button>
 </main>
 </section>
@@ -239,10 +372,10 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div id="condition-box">
 <span class="label" id="cond-l">Состояние</span>
 <div class="seg seg2" role="group" aria-labelledby="cond-l" data-group="condition">
-<button class="opt" type="button" data-v="new">Новый, запечатан</button>
-<button class="opt" type="button" data-v="excellent" aria-pressed="true">Отличное</button>
-<button class="opt" type="button" data-v="good">Хорошее</button>
-<button class="opt" type="button" data-v="fair">Удовлетворительное</button>
+<button class="opt" type="button" data-v="new"><span data-icon="box"></span>Новый, запечатан</button>
+<button class="opt" type="button" data-v="excellent" aria-pressed="true"><span data-icon="check"></span>Отличное</button>
+<button class="opt" type="button" data-v="good"><span data-icon="phone"></span>Хорошее</button>
+<button class="opt" type="button" data-v="fair"><span data-icon="sliders"></span>С дефектами</button>
 </div>
 </div>
 <div id="battery-box">
@@ -291,22 +424,25 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 </section>
 
 <section id="result" class="screen" aria-labelledby="res-title">
-<header><div><h1 id="res-title"></h1><div class="sub" id="res-sub"></div></div></header>
+<header><h1 id="res-title">Результат оценки</h1></header>
 <main>
-<div class="hero" id="hero">
-<div class="row"><span style="font-size:14px;color:#DCE6FF" id="res-hero-k">Рекомендуемый закуп</span><span class="pill" id="res-rel"></span></div>
-<div class="amount" id="res-buy"></div>
-<div class="note" id="res-max-box"><span id="res-max"></span></div>
+<div class="strip warnstrip hidden" id="res-market-note" role="status"></div>
+<div class="card" style="padding:12px">
+<div class="big" id="res-model"></div><div class="sub" id="res-sub"></div><div class="sub hidden" id="res-rel"></div>
+</div>
+<div class="result-metrics" id="hero">
+<div class="result-price purchase" id="res-buy-box"><span class="metric-k"><span data-icon="lock"></span>Рекомендуемый закуп</span><strong id="res-buy"></strong></div>
+<div class="result-price maximum" id="res-max-box"><span class="metric-k"><span data-icon="tag"></span>Максимум закупа</span><strong id="res-max"></strong><small>Не превышать</small></div>
 </div>
 <div class="strip warnstrip hidden" id="res-withheld" role="status">Закуп бот не показывает: подходящих объявлений слишком мало, чтобы назвать сумму уверенно. Посмотрите объявления ниже и решите сами или спросите эксперта. Цены продажи ниже — только справочно.</div>
 <div class="duo" id="res-sale-tiles">
-<div class="tile"><span class="k">Продажа наличными</span><span class="v" id="res-cash"></span></div>
-<div class="tile"><span class="k">В рассрочку</span><span class="v" id="res-inst"></span></div>
+<div class="tile" id="res-cash-box"><span class="k">Продажа наличными</span><span class="v" id="res-cash"></span></div>
+<div class="tile" id="res-inst-box"><span class="k">В рассрочку</span><span class="v" id="res-inst"></span></div>
 </div>
-<div class="strip okstrip" id="res-margin-box"><span>Ожидаемая маржа</span><b id="res-margin"></b></div>
+<div class="strip okstrip hidden" id="res-margin-box"><span>Ожидаемая маржа</span><b id="res-margin"></b></div>
 <div class="strip warnstrip hidden" id="res-partial">Рынок подтверждён частично — просмотрите объявления ниже.</div>
-<div class="card">
-<div style="padding:14px 16px 4px" class="label">На чём основана цена</div>
+<div>
+<div class="label">Источники и аналитика цен</div>
 <div id="res-basis"></div>
 </div>
 <div class="card hidden" id="res-list-box" style="padding:0">
@@ -317,11 +453,62 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 <div class="footer duo"><button class="btn ghost" id="res-chat" type="button">В меню</button><button class="btn" id="res-new" type="button">Новый расчёт</button></div>
 </section>
 
+<nav id="dock" class="hidden" aria-label="Основные разделы"><div id="dock-inner">
+<button type="button" data-dock="purchase" class="hidden"><span data-icon="calculator"></span>Оценка</button>
+<button type="button" data-dock="sale" class="hidden"><span data-icon="tag"></span>Цена</button>
+<button type="button" data-dock="history" class="hidden"><span data-icon="history"></span>История</button>
+<button type="button" data-dock="manage" class="hidden"><span data-icon="shield"></span>Управление</button>
+</div></nav>
+
 <script>
 (function () {
   "use strict";
   var tg = window.Telegram && window.Telegram.WebApp;
   if (tg) { tg.ready(); tg.expand(); }
+  var systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+  function syncTheme() {
+    var telegramTheme = tg && tg.colorScheme;
+    document.documentElement.dataset.theme = telegramTheme === "dark" || (!telegramTheme && systemTheme.matches) ? "dark" : "light";
+  }
+  syncTheme();
+  if (tg && tg.onEvent) tg.onEvent("themeChanged", syncTheme);
+  if (systemTheme.addEventListener) systemTheme.addEventListener("change", syncTheme);
+
+  // Local Lucide line glyphs; the page never downloads a font or an icon library.
+  var glyphPaths = {
+    calculator: "M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M8 6h8 M8 10h1 M15 10h1 M8 14h1 M15 14h1 M8 18h1 M15 18h1",
+    tag: "M20 13.5 13.5 20a2 2 0 0 1-2.8 0L2 11.3V2h9.3l8.7 8.7a2 2 0 0 1 0 2.8z M7.5 7.5h.01",
+    history: "M3 12a9 9 0 1 1 2.6 6.4 M3 3v9h9 M12 7v5l3 2",
+    shield: "M12 22s7-4 7-11V5l-7-3-7 3v6c0 7 7 11 7 11z M9 12l2 2 4-4",
+    trend: "m3 17 6-6 4 4 7-7 M15 8h5v5",
+    search: "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.3-4.3",
+    sliders: "M4 6h16 M4 12h16 M4 18h16 M8 4v4 M16 10v4 M10 16v4",
+    help: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4 M12 17h.01",
+    check: "m5 12 4 4L19 6",
+    phone: "M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 18h.01",
+    box: "M3 8h18v13H3z M2 3h20v5H2z M10 12h4",
+    lock: "M6 11h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z M8 11V7a4 4 0 0 1 8 0v4",
+    store: "M3 9l2-6h14l2 6v3a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z M4 15v6h16v-6 M10 21v-4h4v4",
+    send: "m22 2-7 20-4-9-9-4z M22 2 11 13",
+    user: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    alert: "M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z M12 9v4 M12 17h.01"
+  };
+  function glyph(name) {
+    var ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg"), path = document.createElementNS(ns, "path");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("class", "glyph");
+    svg.setAttribute("aria-hidden", "true");
+    path.setAttribute("d", glyphPaths[name] || glyphPaths.tag);
+    svg.appendChild(path);
+    return svg;
+  }
+  document.querySelectorAll("[data-icon]").forEach(function (el) { el.appendChild(glyph(el.dataset.icon)); });
+  document.querySelectorAll(".screen:not(#home)>header").forEach(function (header) {
+    var button = document.createElement("button"); button.type = "button"; button.className = "brand";
+    button.textContent = "Price Pilot"; button.setAttribute("aria-label", "Price Pilot: главная");
+    button.addEventListener("click", goHome);
+    header.prepend(button);
+  });
   var params = new URLSearchParams(location.search);
   var API = (params.get("api") || (window.PRICEPILOT_CONFIG || {}).api || "").replace(/\/+$/, "");
   var initData = tg ? tg.initData : "";
@@ -335,7 +522,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   function isApple(text) { return /(iphone|айфон|apple|ipad|айпад|watch)/i.test(text || ""); }
   function isIphone(text) { return /(iphone|айфон)/i.test(text || ""); }
   function storageText(gb) { return gb >= 1024 ? "1 ТБ" : gb + " ГБ"; }
-  var pollTimer = null, startedAt = 0, lastItem = null, currentJob = null;
+  var pollTimer = null, startedAt = 0, lastItem = null, currentJob = null, displayedMargin = null;
   var JOB_KEY = "pp_last_job";
   function saveJob(job) { try { job ? localStorage.setItem(JOB_KEY, JSON.stringify(job)) : localStorage.removeItem(JOB_KEY); } catch (e) {} }
   function loadJob() { try { var j = JSON.parse(localStorage.getItem(JOB_KEY) || "null"); return j && Date.now() - j.ts < 29 * 60000 ? j : null; } catch (e) { return null; } }
@@ -359,9 +546,20 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
 
   function $(id) { return document.getElementById(id); }
   var screenNow = "home";
+  function updateDock() {
+    var active = screenNow === "home" ? "purchase" :
+      screenNow === "history" || (screenNow === "result" && histFrom === "history") ? "history" :
+      screenNow === "monitor" && monKind === "manage" ? "manage" :
+      ["form", "wait", "result"].indexOf(screenNow) >= 0 ? state.mode : "";
+    document.body.dataset.view = screenNow === "monitor" ? monKind : screenNow;
+    document.querySelectorAll("[data-dock]").forEach(function (b) {
+      if (b.dataset.dock === active) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
+  }
   function show(id) {
     screenNow = id;
     ["home", "history", "device", "monitor", "settings", "help", "form", "wait", "result"].forEach(function (s) { $(s).classList.toggle("on", s === id); });
+    updateDock();
     window.scrollTo(0, 0);
     try { if (tg && tg.BackButton) { if (id === "home") tg.BackButton.hide(); else tg.BackButton.show(); } } catch (e) {}
   }
@@ -513,7 +711,7 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   }
 
   function describe(item) {
-    var cond = { "new": "Новый", excellent: "Отличное", good: "Хорошее", fair: "Удовлетворительное" }[item.condition] || "";
+    var cond = { "new": "Новый", excellent: "Отличное", good: "Хорошее", fair: "С дефектами" }[item.condition] || "";
     var parts = [cond];
     if (item.battery) parts.push("АКБ " + item.battery + "%");
     if (item.sim_variant) parts.push(item.sim_variant === "esim_only" ? "только eSIM" : "SIM-слот");
@@ -651,6 +849,84 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     });
   }
 
+  var sourceCards = [
+    ["kaspi", "Kaspi", "store"],
+    ["olx_commission", "OLX комиссионки", "store"],
+    ["olx_private", "OLX частники", "user"],
+    ["telegram", "Telegram", "send"],
+    ["own_sales", "Наши продажи", "store"],
+    ["owner_price_history", "История цен", "history"]
+  ];
+  var sourceIssue = { TIMEOUT:"не ответил вовремя", UNAVAILABLE:"источник недоступен",
+    PARSE_ERROR:"не удалось прочитать", ERROR:"ошибка источника", NOT_TESTED:"не проверялся",
+    PARTIAL:"проверка неполная" };
+  function safeSourceUrl(url) {
+    try {
+      var parsed = new URL(url);
+      if (parsed.protocol === "https:" && !parsed.username && !parsed.password) return parsed.href;
+    } catch (e) {}
+    return "";
+  }
+  function sourceRow(item, source) {
+    var url = safeSourceUrl(item.url), row = document.createElement(url ? "a" : "div");
+    row.className = "basis";
+    if (url) {
+      row.href = url;
+      row.addEventListener("click", function (event) { event.preventDefault(); openUrl(url); });
+    }
+    var left = document.createElement("div"), name = document.createElement("b"), meta = document.createElement("div");
+    var own = source === "own_sales" || source === "owner_price_history";
+    name.textContent = (own ? item.title : item.seller || item.title) || "";
+    if (name.textContent) left.appendChild(name);
+    meta.className = "s";
+    meta.textContent = [!own && item.title && item.title !== name.textContent ? item.title : "",
+      typeof item.date === "string" ? item.date.slice(0, 10) : ""].filter(Boolean).join(" · ");
+    if (meta.textContent) left.appendChild(meta);
+    row.appendChild(left);
+    var value = document.createElement("b");
+    value.textContent = source === "kaspi"
+      ? [item.branch_price ? "Астана: " + money(item.branch_price) : "",
+        item.national_price ? "Общий: " + money(item.national_price) : ""].filter(Boolean).join(" · ") || (item.price ? money(item.price) : "")
+      : item.price ? money(item.price) : "";
+    if (value.textContent) row.appendChild(value);
+    return row;
+  }
+  function renderSourceCard(box, label, icon, block, ceiling) {
+    block = block || {};
+    var rows = Array.isArray(block.rows) ? block.rows : [];
+    var details = document.createElement("details"), summary = document.createElement("summary");
+    var title = document.createElement("strong"), note = document.createElement("small");
+    var content = document.createElement("div");
+    details.className = "source-card"; title.className = "src-title"; content.className = "source-content";
+    var empty = !block.count && !rows.length;
+    title.textContent = label;
+    note.textContent = [empty ? "Не найдено" : (block.count ? "Позиций: " + block.count : ""),
+      ceiling && ceiling.kaspi_ceiling ? (ceiling.kaspi_ceiling_applied ? "Ограничил итог" : "Проверен, не применялся") : "",
+      block.used ? "в расчёте: " + block.used : "", sourceIssue[block.status]].filter(Boolean).join(" · ");
+    if (note.textContent) title.appendChild(note);
+    summary.appendChild(glyph(icon)); summary.appendChild(title);
+    var center = ceiling && ceiling.kaspi_ceiling ||
+      (block.source === "kaspi" ? (rows[0] || {}).national_price : block.median || block.min);
+    if (center && block.source !== "owner_price_history" && block.source !== "own_sales") {
+      var amount = document.createElement("span"); amount.className = "src-value";
+      amount.textContent = money(center); summary.appendChild(amount);
+    }
+    rows.forEach(function (row) { content.appendChild(sourceRow(row, block.source)); });
+    if (!rows.length) {
+      var msg = document.createElement("p"); msg.className = "empty-source";
+      msg.textContent = empty ? "Не найдено" : [block.min ? "Минимум: " + money(block.min) : "",
+        block.median ? "Медиана: " + money(block.median) : ""].filter(Boolean).join(" · ");
+      if (msg.textContent) content.appendChild(msg);
+    }
+    details.appendChild(summary); details.appendChild(content); box.appendChild(details);
+  }
+  function updateMargin() {
+    // The server offers the management feature only to the owner.
+    var allowed = !!(profile && profile.features && profile.features.manage && displayedMargin && displayedMargin.min);
+    $("res-margin-box").classList.toggle("hidden", !allowed);
+    $("res-margin").textContent = allowed ? money(displayedMargin.min) +
+      (displayedMargin.max && displayedMargin.max !== displayedMargin.min ? " – " + money(displayedMargin.max) : "") : "";
+  }
   function render(r) {
     r = r || {};
     if (r.clarify) { askClarify(r.clarify); haptic("warning"); return; }
@@ -659,33 +935,39 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       err($("wait-err"), "Бот не смог посчитать эту модель. Вернитесь в меню и проверьте параметры.");
       return;
     }
-    $("res-title").textContent = r.title || "";
+    $("res-model").textContent = r.title || "";
     $("res-sub").textContent = [r.condition, r.battery && !/^Нов/.test(r.condition || "") ? "АКБ " + r.battery + "%" : ""].filter(Boolean).join(" · ");
     var p = r.purchase || {};
     var sale = r.sale || {};
     var saleMode = r.mode === "sale";
-    if (saleMode) p = { withheld: !sale.cash };
-    $("hero").classList.toggle("hidden", !!p.withheld || (saleMode && !sale.cash));
-    $("res-withheld").classList.toggle("hidden", !p.withheld);
+    $("result").dataset.mode = saleMode ? "sale" : "purchase";
+    $("res-title").textContent = saleMode ? "Выставить цену" : "Результат оценки";
+    var showRecommended = !saleMode && !p.withheld && !!p.recommended;
+    var showMaximum = !saleMode && !p.withheld && !!p.maximum;
+    $("hero").classList.toggle("hidden", !showRecommended && !showMaximum);
+    $("res-buy-box").classList.toggle("hidden", !showRecommended);
+    $("res-max-box").classList.toggle("hidden", !showMaximum);
+    $("res-buy").textContent = showRecommended ? money(p.recommended) : "";
+    $("res-max").textContent = showMaximum ? money(p.maximum) : "";
+    $("res-withheld").classList.toggle("hidden", saleMode ? !!sale.cash || !!sale.installment : !p.withheld);
     if (saleMode) $("res-withheld").textContent = sale.reason || "Недостаточно данных для цены продажи.";
     else $("res-withheld").textContent = sale.reason || "Закуп бот не показывает: подходящих объявлений слишком мало, чтобы назвать сумму уверенно. Цены продажи ниже — только справочно.";
-    $("res-hero-k").textContent = saleMode ? "Цена продажи наличными" : "Рекомендуемый закуп";
-    $("res-buy").textContent = money(saleMode ? sale.cash : p.recommended);
-    $("res-max").innerHTML = "";
-    var maxText = document.createElement("span");
-    maxText.textContent = saleMode ? (sale.installment ? "В рассрочку — " + money(sale.installment) : "")
-      : (p.maximum ? "Максимум — " + money(p.maximum) + ", дороже не брать" : "");
-    $("res-max").appendChild(maxText);
-    $("res-max-box").classList.toggle("hidden", !maxText.textContent);
-    $("res-sale-tiles").classList.toggle("hidden", saleMode);
+    $("res-sale-tiles").classList.toggle("hidden", !sale.cash && !sale.installment);
+    $("res-cash-box").classList.toggle("hidden", !sale.cash);
+    $("res-inst-box").classList.toggle("hidden", !sale.installment);
     // Purchase withheld: sale prices stay as a reference only.
     $("res-sale-tiles").style.opacity = (!saleMode && p.withheld) ? ".6" : "";
     $("res-rel").textContent = r.reliability ? "Надёжность: " + r.reliability : "";
-    $("res-cash").textContent = money((r.sale || {}).cash);
-    $("res-inst").textContent = money((r.sale || {}).installment);
-    var m = r.margin || {};
-    $("res-margin").textContent = m.min ? money(m.min) + (m.max && m.max !== m.min ? " – " + money(m.max) : "") : "—";
-    $("res-margin-box").classList.toggle("hidden", !m.min || p.withheld || saleMode);
+    $("res-rel").classList.toggle("hidden", !r.reliability);
+    $("res-cash").textContent = sale.cash ? money(sale.cash) : "";
+    $("res-inst").textContent = sale.installment ? money(sale.installment) : "";
+    var flag = sale.basis || {};
+    var marketChanged = flag.market_changed === true && Number(flag.previous_cash) > 0 && Number(flag.market_cash) > 0;
+    $("res-market-note").replaceChildren();
+    $("res-market-note").classList.toggle("hidden", !marketChanged);
+    if (marketChanged) $("res-market-note").append(glyph("alert"),"Рынок изменился: было " + money(flag.previous_cash) + ", сейчас " + money(flag.market_cash));
+    displayedMargin = saleMode || p.withheld ? null : r.margin || null;
+    updateMargin();
     $("res-partial").classList.toggle("hidden", !r.partially_confirmed || p.withheld);
     var basis = $("res-basis"); basis.innerHTML = "";
     function line(name, note, value) {
@@ -696,40 +978,33 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
       var right = document.createElement("b"); right.textContent = value;
       row.appendChild(left); row.appendChild(right); basis.appendChild(row);
     }
-    if (r.history) $("res-sub").textContent = [$("res-sub").textContent, "расчёт от " + r.history.date].filter(Boolean).join(" · ");
+    if (r.history && r.history.date) $("res-sub").textContent = [$("res-sub").textContent, "расчёт от " + r.history.date].filter(Boolean).join(" · ");
     if (r.own_sales) line("Наши продажи", r.own_sales.count + " за 90 дней — основа цены", money(r.own_sales.min) + " – " + money(r.own_sales.max));
+    var blocks = r.source_blocks || [];
     if (sale.basis) {
       if (sale.basis.label) line("Основа цены", sale.basis.label, sale.basis.count + " поз.");
-      if (sale.basis.market_changed) line("Рынок изменился", "Было " + money(sale.basis.previous_cash) + ", сейчас " + money(sale.basis.market_cash), "");
       if (sale.basis.condition_note) line("Сопоставимость", sale.basis.condition_note, "");
-      if (sale.basis.kaspi_ceiling) line("Kaspi — только потолок", sale.basis.kaspi_ceiling_applied ? "Ограничил итог" : "Проверен, не применялся", money(sale.basis.kaspi_ceiling));
-      else line("Kaspi — только потолок", "Нет данных Kaspi; потолок не применяется", "—");
+      if (sale.basis.kaspi_ceiling && !(saleMode && blocks.length)) line("Kaspi — только потолок", sale.basis.kaspi_ceiling_applied ? "Ограничил итог" : "Проверен, не применялся", money(sale.basis.kaspi_ceiling));
     }
     (r.sources || []).forEach(function (s) {
+      if (saleMode && s.source === "kaspi" && (blocks.length || (sale.basis || {}).kaspi_ceiling)) return;
       var note = s.ok ? (s.found != null ? "найдено " + s.found : "есть данные") : (s.note || "недоступен");
       if (s.ok && s.used) note += ", в расчёте " + s.used;
       line(s.source === "retail" ? "Sulpak, Technodom" : s.label, note, s.ok ? "✓" : "—");
     });
-    (r.source_blocks || []).forEach(function (block) {
-      var issue = {TIMEOUT:"не ответил вовремя", UNAVAILABLE:"недоступен", PARSE_ERROR:"не удалось прочитать", ERROR:"ошибка источника",NOT_TESTED:"не проверялся"};
-      var note = issue[block.status] || (block.count ? block.count + " сопоставимых" : "не найдено");
-      if (block.status === "PARTIAL") note += " · проверка неполная";
-      if (block.used) note += " · в расчёте: " + block.used;
-      if (block.reason) note += " · " + block.reason;
-      if (block.source === "olx_private" && block.count) note += " · мин. " + money(block.min) + ", медиана " + money(block.median);
-      line(block.label, note, "");
-      (block.rows || []).forEach(function (item) {
-        var date = (item.date || "").slice(0, 10);
-        var value = block.source === "kaspi" ? "Астана: " + money(item.branch_price) + " · общий: " + money(item.national_price) : money(item.price);
-        var url = item.url && /^https:\/\//i.test(item.url) ? item.url : "";
-        if (url) {
-          var row = document.createElement("a"); row.className = "basis"; row.href = url; row.target = "_blank"; row.rel = "noopener noreferrer";
-          row.textContent = [item.seller || item.title, value, date].filter(Boolean).join(" · ");
-          basis.appendChild(row);
-        } else line(item.seller || item.title || block.label, date, value);
+    if (blocks.length) {
+      var bySource = new Map(blocks.map(function (block) { return [block.source,block]; }));
+      sourceCards.forEach(function (card) {
+        var capCard = saleMode && card[0] === "kaspi";
+        renderSourceCard(basis,capCard ? "Kaspi — только потолок" : card[1],card[2],
+          bySource.get(card[0]),capCard ? sale.basis : null);
+        bySource.delete(card[0]);
       });
-    });
-    renderListings((r.source_blocks || []).length ? [] : (r.listings || []));
+      bySource.forEach(function (block) {
+        if (block.count || (block.rows || []).length) renderSourceCard(basis,block.label,"store",block);
+      });
+    }
+    renderListings(blocks.length ? [] : (r.listings || []));
     var j = loadJob(); if (j) { j.viewed = true; saveJob(j); }
     show("result");
   }
@@ -798,40 +1073,81 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
     $("m-device").classList.toggle("hidden", !f.device_check);
     $("m-monitor").classList.toggle("hidden", !f.monitor);
     $("m-manage").classList.toggle("hidden", !f.manage);
+    $("home-pair").classList.toggle("hidden", !f.sale && !f.history);
+    $("home-ops").classList.toggle("hidden", !f.monitor && !f.manage);
+    var hasDock = false;
+    document.querySelectorAll("[data-dock]").forEach(function (b) {
+      var available = !!f[b.dataset.dock];
+      b.classList.toggle("hidden", !available);
+      hasDock = hasDock || available;
+    });
+    $("dock").classList.toggle("hidden", !hasDock);
+    document.body.classList.toggle("has-dock", hasDock);
+    updateDock();
+    updateMargin();
     $("m-settings").classList.toggle("hidden", profile.name == null);
     $("m-chat").classList.add("hidden");
     $("hist-tabs").classList.toggle("hidden", !f.history_all);
     $("hist-title").textContent = f.history_all ? "История расчётов" : "Мои расчёты";
   }
-  var historyRequest = 0;
+  var historyRequest = 0, historyBusy = false, histNext = null, historySearchTimer = null;
+  function searchable(value) {
+    return (value || "").normalize("NFKC").toLocaleLowerCase("ru").replace(/ё/g,"е").trim();
+  }
+  function filterHistory() {
+    var query = searchable($("hist-search").value), matches = 0;
+    $("hist-list").querySelectorAll(".history-card").forEach(function (row) {
+      var matched = query.split(/\s+/).every(function (word) { return row.dataset.model.includes(word); });
+      row.classList.toggle("hidden", !matched);
+      if (matched) matches++;
+    });
+    $("hist-list-wrap").classList.toggle("hidden", !matches);
+    $("hist-empty").classList.toggle("hidden", !!matches || historyBusy || histNext !== null);
+    $("hist-empty").textContent = query ? "По этой модели расчётов нет" : "Расчётов пока нет";
+    $("hist-more").classList.toggle("hidden", historyBusy || histNext === null);
+    return matches;
+  }
+  function searchNextPage() {
+    if (!filterHistory() && searchable($("hist-search").value) && !historyBusy && histNext !== null && screenNow === "history") loadHistory(false);
+  }
   function loadHistory(reset) {
     var request = ++historyRequest;
-    if (reset) { histOffset = 0; $("hist-list").innerHTML = ""; }
-    $("hist-list").parentElement.classList.toggle("hidden", !$("hist-list").children.length);
+    if (reset) { histOffset = 0; histNext = null; $("hist-list").replaceChildren(); }
+    else if (histNext !== null) histOffset = histNext;
+    historyBusy = true;
+    filterHistory();
     err($("hist-err"), "");
     loadState("hist", true, false); $("hist-empty").classList.add("hidden");
     $("hist-more").classList.add("hidden");
     api("/api/history?scope=" + histScope + "&offset=" + histOffset).then(function (data) {
       if (request !== historyRequest) return;
+      historyBusy = false;
       loadState("hist", false, !!data.error);
       if (data.error) { err($("hist-err"), failure(data)); return; }
       var list = $("hist-list");
       (data.items || []).forEach(function (it) {
-        var row = document.createElement("button"); row.type = "button"; row.className = "hrow";
-        var left = document.createElement("div");
+        var row = document.createElement("button"); row.type = "button"; row.className = "hrow history-card";
+        row.dataset.model = searchable(it.title);
+        var left = document.createElement("div"); left.className = "history-head";
         var t = document.createElement("div"); t.className = "t"; t.textContent = it.title || "Без названия";
         var s = document.createElement("div"); s.className = "s";
-        s.textContent = [it.date, it.mode === "sale" ? "цена продажи" : it.mode === "purchase" ? "закуп" : "", it.author].filter(Boolean).join(" · ");
-        left.appendChild(t); left.appendChild(s);
-        var right = document.createElement("b"); right.textContent = (it.summary || "").replace(/^(Закуп|Продажа):\s*/, "");
-        row.appendChild(left); row.appendChild(right);
+        s.textContent = [it.date,it.author].filter(Boolean).join(" · ");
+        left.appendChild(t);
+        if (it.mode === "sale" || it.mode === "purchase") {
+          var tag = document.createElement("span"); tag.className = "tag " + it.mode;
+          tag.textContent = it.mode === "sale" ? "Цена продажи" : "Оценка закупа"; left.appendChild(tag);
+        }
+        row.appendChild(left);
+        if (s.textContent) row.appendChild(s);
+        if (it.summary) {
+          var right = document.createElement("div"); right.className = "history-summary"; right.textContent = it.summary;
+          row.appendChild(right);
+        }
         row.addEventListener("click", function () { openHistoryItem(it.id); });
         list.appendChild(row);
       });
-      $("hist-empty").classList.toggle("hidden", list.children.length > 0);
-      list.parentElement.classList.toggle("hidden", !list.children.length);
-      histOffset = data.next_offset || 0;
-      $("hist-more").classList.toggle("hidden", data.next_offset == null);
+      histNext = typeof data.next_offset === "number" && data.next_offset > histOffset ? data.next_offset : null;
+      searchNextPage();
     });
   }
   function openHistoryItem(id) {
@@ -847,7 +1163,18 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   $("m-purchase").addEventListener("click", function () { openForm("purchase"); });
   $("m-sale").addEventListener("click", function () { openForm("sale"); });
   $("m-history").addEventListener("click", function () { show("history"); loadHistory(true); });
+  document.querySelectorAll("[data-dock]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var menu = $("m-" + button.dataset.dock);
+      if (!menu.classList.contains("hidden")) { clearTimeout(pollTimer); menu.click(); }
+    });
+  });
   $("hist-more").addEventListener("click", function () { loadHistory(false); });
+  $("hist-search").addEventListener("input", function () {
+    filterHistory();
+    clearTimeout(historySearchTimer);
+    historySearchTimer = setTimeout(searchNextPage,300);
+  });
   $("hist-retry").addEventListener("click", function () { loadHistory(true); });
   $("home-retry").addEventListener("click", loadProfile);
   $("hist-tabs").addEventListener("click", function (event) {
@@ -962,60 +1289,91 @@ a.basis{text-decoration:none;color:inherit}a.basis .s.u{color:var(--accent)}.bas
   $("m-help").addEventListener("click", function () { show("help"); });
 
   // ---- monitoring: the chat's own screens, rendered here ----
-  var monStack = [], monKind = "monitor", monRequest = 0, monLastAction = null;
+  var monStack = [], monKind = "monitor", monRequest = 0;
   function monEntry() { return monKind === "manage" ? "admin:menu" : "monitor:menu"; }
+  function drawView(data) {
+    var box = $("mon-text");
+    var html = data.html || "";
+    var sections = html && !/<pre\b/i.test(html) ? html.trim().split(/\n\s*\n/) : html ? [html] : [];
+    box.classList.remove("hidden");
+    box.classList.toggle("view-records", sections.length > 1);
+    box.classList.toggle("card", sections.length <= 1);
+    if (sections.length > 1) {
+      box.replaceChildren();
+      sections.forEach(function (section) {
+        var row = document.createElement("div");
+        row.className = "view-record";
+        row.innerHTML = section; // API supplies a sanitized fragment.
+        if (/^Список пуст\.?$/i.test(row.textContent.trim())) {
+          row.classList.add("empty-record");
+          row.prepend(glyph("box"));
+        }
+        box.appendChild(row);
+      });
+    } else if (html) box.innerHTML = html;
+    else box.textContent = data.alert || "Данных пока нет.";
+    box.querySelectorAll("a").forEach(function (a) {
+      a.addEventListener("click", function (e) { e.preventDefault(); openUrl(a.getAttribute("href")); });
+    });
+  }
   function loadMonitor(action, push, text) {
     var request = ++monRequest;
-    if (text == null) monLastAction = action;
     err($("mon-err"), ""); $("mon-alert").classList.add("hidden");
     loadState("mon", true, false);
-    if (!$("mon-text").textContent) $("mon-text").textContent = "Загрузка…";
-    $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = true; });
-    if (action === "monitor:opportunities") $("mon-text").textContent = "Проверяю OLX — это может занять до минуты…";
+    $("mon-state").textContent = action === "monitor:opportunities" ? "Проверяю OLX…" : "Загрузка…";
+    document.querySelectorAll("#mon-btns button, #mon-text .record-action").forEach(function (b) { b.disabled = true; });
     var payload = { init_data: initData };
     if (text != null) payload.text = text; else payload.action = action;
     api("/api/" + monKind, { method: "POST", body: JSON.stringify(payload) }).then(function (data) {
       if (request !== monRequest) return;
       loadState("mon", false, !!data.error);
-      $("mon-btns").querySelectorAll("button").forEach(function (b) { b.disabled = false; });
+      document.querySelectorAll("#mon-btns button, #mon-text .record-action").forEach(function (b) { b.disabled = false; });
       if (data.error === "bad_request" && text == null && action !== monEntry()) {
         // The bot only accepts buttons from the latest screen: reopen the section.
         loadMonitor(monEntry(), true); return;
       }
       if (data.error) {
-        $("mon-text").textContent = "Не удалось загрузить раздел.";
+        $("mon-text").classList.add("hidden");
         err($("mon-err"), failure(data));
         return;
       }
       if (push && text == null) monStack.push(action);
       $("mon-input-box").classList.toggle("hidden", !data.awaiting_text);
       if (data.awaiting_text) { $("mon-input").value = ""; }
-      // Server sends sanitized HTML: only b/i/u/s/code/pre/a(https) survive.
-      $("mon-text").innerHTML = data.html || data.alert || "Пусто. Данных для этого раздела пока нет.";
-      $("mon-text").querySelectorAll("a").forEach(function (a) {
-        a.addEventListener("click", function (e) { e.preventDefault(); openUrl(a.getAttribute("href")); });
-      });
+      drawView(data);
       if (data.alert) { $("mon-alert").textContent = data.alert; $("mon-alert").classList.remove("hidden"); }
       var box = $("mon-btns"); box.innerHTML = "";
       (data.buttons || []).forEach(function (row) {
         var r = document.createElement("div"); r.className = "r";
         row.forEach(function (b) {
           var el = document.createElement("button"); el.type = "button"; el.className = "btn ghost"; el.textContent = b.text;
+          if (b.action === "admin:users:add") el.dataset.accessGrant = "";
+          if (/^admin:(?:delete_user|disable_user|user:disable):/.test(b.action || "")) el.dataset.accessRevoke = "";
           el.addEventListener("click", function () {
             if (b.url) { openUrl(b.url); return; }
             if (b.home) { goHome(); return; }
             loadMonitor(b.action, true);
           });
-          r.appendChild(el);
+          var userAction = /^admin:user:(?:active|disabled):/.test(b.action || "");
+          var modelAction = /^monitor:model:/.test(b.action || "");
+          var matches = (userAction || modelAction) ? Array.from($("mon-text").querySelectorAll(".view-record")).filter(function (card) {
+            return card.textContent.trim().split("\n")[0].trim() === b.text.trim();
+          }) : [];
+          if (matches.length === 1) {
+            el.classList.add("record-action");
+            el.textContent = userAction ? "Доступ" : "Подробнее";
+            el.setAttribute("aria-label", el.textContent + ": " + b.text);
+            matches[0].appendChild(el);
+          } else r.appendChild(el);
         });
-        box.appendChild(r);
+        if (r.children.length) box.appendChild(r);
       });
       window.scrollTo(0, 0);
     });
   }
   function openChatSection(kind, title, first) {
     monKind = kind; monStack = [];
-    $("mon-title").textContent = title; $("mon-text").textContent = "";
+    $("mon-title").textContent = title; $("mon-text").textContent = ""; $("mon-text").classList.add("hidden");
     $("mon-btns").innerHTML = ""; $("mon-input-box").classList.add("hidden");
     show("monitor"); loadMonitor(first, true);
   }
