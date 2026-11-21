@@ -921,8 +921,15 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     meta.textContent = [!own && item.title && item.title !== name.textContent ? item.title : "",
       typeof item.date === "string" ? item.date.slice(0, 10) : "", item.city,
       item.memory, item.battery ? "АКБ " + item.battery + "%" : "",
+      item.cycles ? item.cycles + " циклов" : "",
       terms[item.price_basis]].filter(Boolean).join(" · ");
     if (meta.textContent) left.appendChild(meta);
+    if (typeof item.defects === "string" && item.defects) {
+      var defect = document.createElement("div");
+      defect.className = "flag";
+      defect.textContent = item.defects + (item.defect_excluded ? " · не в расчёте" : "");
+      left.appendChild(defect);
+    }
     if (item.suspicious_cheap) {
       var flag = document.createElement("div");
       flag.className = "flag"; flag.textContent = "подозрительно дёшево · не в медиане";
