@@ -183,6 +183,8 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
 #result[data-mode="sale"] #res-cash{color:var(--ok)}
 .basis{border-color:var(--line);padding:9px 10px;min-width:0;overflow-wrap:anywhere}
 .basis>div{min-width:0}
+.basis>b{flex:none;white-space:nowrap;overflow-wrap:normal;font-variant-numeric:tabular-nums}
+.basis .flag{display:inline-block;margin-top:3px;padding:1px 6px;border-radius:4px;background:var(--warn-soft);color:var(--warn);font-size:11px;font-weight:600}
 #res-basis{display:grid;gap:8px}
 .source-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .source-card summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:54px;padding:9px 10px;cursor:pointer}
@@ -921,6 +923,11 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
       item.memory, item.battery ? "АКБ " + item.battery + "%" : "",
       terms[item.price_basis]].filter(Boolean).join(" · ");
     if (meta.textContent) left.appendChild(meta);
+    if (item.suspicious_cheap) {
+      var flag = document.createElement("div");
+      flag.className = "flag"; flag.textContent = "подозрительно дёшево · не в медиане";
+      left.appendChild(flag);
+    }
     row.appendChild(left);
     var value = document.createElement("b");
     value.textContent = source === "kaspi"
