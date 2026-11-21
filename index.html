@@ -433,8 +433,8 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
 </div>
 <div class="strip warnstrip hidden" id="res-market-warning" role="status">Часть рынка не ответила. Надёжность низкая: проверьте рынок вручную, прежде чем принимать решение о закупе.</div>
 <div class="result-metrics" id="hero">
-<div class="result-price purchase" id="res-buy-box"><span class="metric-k"><span data-icon="lock"></span>Рекомендуемый закуп</span><strong id="res-buy"></strong></div>
-<div class="result-price maximum" id="res-max-box"><span class="metric-k"><span data-icon="tag"></span>Максимум закупа</span><strong id="res-max"></strong><small>Не превышать</small></div>
+<div class="result-price purchase" id="res-buy-box"><span class="metric-k"><span data-icon="lock"></span>На время</span><strong id="res-buy"></strong></div>
+<div class="result-price maximum" id="res-max-box"><span class="metric-k"><span data-icon="tag"></span>На продажу</span><strong id="res-max"></strong></div>
 </div>
 <div class="strip warnstrip hidden" id="res-withheld" role="status">Закуп бот не показывает: подходящих объявлений слишком мало, чтобы назвать сумму уверенно. Посмотрите объявления ниже и решите сами или спросите эксперта. Цены продажи ниже — только справочно.</div>
 <div class="duo" id="res-sale-tiles">
@@ -889,6 +889,8 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     PARTIAL:"проверка неполная" };
   function sourceProblem(block) {
     if (block.reason === "national_coverage_incomplete") return "не подтверждён минимум по всем городам";
+    if (["olx_automation_or_access_block", "olx_access_block_cooldown", "http_403_or_antibot"].includes(block.reason)) return "OLX ограничил доступ";
+    if (block.reason === "olx_no_exact_recent_offers") return "нет свежих предложений этой конфигурации";
     return sourceIssue[block.status] || "";
   }
   function safeSourceUrl(url) {
@@ -907,11 +909,17 @@ body[data-view="manage"] .mbtns .btn[data-access-revoke]{background:var(--error-
     }
     var left = document.createElement("div"), name = document.createElement("b"), meta = document.createElement("div");
     var own = source === "own_sales" || source === "owner_price_history";
-    name.textContent = (own ? item.title : item.seller || item.title) || "";
+    var fallback = source === "olx_commission" ? "Магазин OLX" : source === "olx_private" ? "Частник" : "";
+    name.textContent = (own ? item.title : item.seller || fallback || item.title) || "";
     if (name.textContent) left.appendChild(name);
     meta.className = "s";
+    var terms = { listed_full_amount: "цена объявления",
+      cash_with_installment_surcharge: item.installment_price ? "в рассрочку " + money(item.installment_price) : "",
+      installment_total_cash_estimate: "полная цена в рассрочку" };
     meta.textContent = [!own && item.title && item.title !== name.textContent ? item.title : "",
-      typeof item.date === "string" ? item.date.slice(0, 10) : ""].filter(Boolean).join(" · ");
+      typeof item.date === "string" ? item.date.slice(0, 10) : "", item.city,
+      item.memory, item.battery ? "АКБ " + item.battery + "%" : "",
+      terms[item.price_basis]].filter(Boolean).join(" · ");
     if (meta.textContent) left.appendChild(meta);
     row.appendChild(left);
     var value = document.createElement("b");
